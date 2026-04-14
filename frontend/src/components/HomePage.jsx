@@ -24,10 +24,10 @@ const PIPELINE_STEPS = [
 ];
 
 const APP_ROWS = [
-  { name: 'ODS Demo Agent', tier: 'Common', score: 74, active: true },
-  { name: 'HR Analytics Engine', tier: 'Common', score: 68, active: false },
-  { name: 'Budget Forecasting AI', tier: 'Foundation', score: 82, active: false },
-  { name: 'Translation Assistant', tier: 'Foundation', score: 71, active: false },
+  { name: 'ODS Demo Agent', tier: 'Compliant', score: 74, active: true },
+  { name: 'HR Analytics Engine', tier: 'Compliant', score: 68, active: false },
+  { name: 'Budget Forecasting AI', tier: 'Compliant', score: 82, active: false },
+  { name: 'Translation Assistant', tier: 'Compliant', score: 71, active: false },
 ];
 
 const REQUIREMENT_ROWS = [
