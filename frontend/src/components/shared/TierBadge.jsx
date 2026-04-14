@@ -6,6 +6,8 @@ const RISK_TIER_MAP = {
   Foundation: 'Low',
   Medium: 'Medium',
   Low: 'Low',
+  Critical: 'Very High',
+  'Very High': 'Very High',
 };
 
 export function normalizeRiskTier(tier) {
@@ -16,6 +18,11 @@ export function normalizeRiskTier(tier) {
 }
 
 const TIER_CONFIG = {
+  'Very High': {
+    cls: 'tier-badge-high',
+    label: 'Very High Risk',
+    tooltip: 'Maximum governance obligations. Executive-level consultation and potential prohibition if not mitigated.',
+  },
   High: {
     cls: 'tier-badge-high',
     label: 'High Risk',

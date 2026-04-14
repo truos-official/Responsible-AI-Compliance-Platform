@@ -7,6 +7,8 @@ const catalogApi = axios.create({
   timeout: 10000,
 });
 
+const ADMIN_HEADERS = { "X-Governance-Scopes": "governance.admin" };
+
 export async function listInterpretations({
   requirementId,
   layer,
@@ -77,6 +79,19 @@ export async function autocompleteCatalog({
   return response.data;
 }
 
+export async function listControls({
+  domain,
+  tier,
+  skip = 0,
+  limit = 200,
+} = {}) {
+  const params = { skip, limit };
+  if (domain) params.domain = domain;
+  if (tier) params.tier = tier;
+  const response = await catalogApi.get("/catalog/controls", { params });
+  return response.data;
+}
+
 export async function getControlDetail(controlId) {
   const response = await catalogApi.get(`/catalog/controls/${controlId}`);
   return response.data;
@@ -86,6 +101,7 @@ export async function getRequirementDetail(requirementId) {
   const response = await catalogApi.get(`/catalog/requirements/${requirementId}`);
   return response.data;
 }
+
 export async function listRequirements({
   controlId,
   skip = 0,
@@ -108,3 +124,61 @@ export async function getCatalogItemDetail(item) {
   throw new Error(`Unsupported item type: ${itemType}`);
 }
 
+export async function searchAdminPolicies({
+  q,
+  limit = 15,
+} = {}) {
+  const query = (q ?? "").trim();
+  if (!query) return { items: [], total: 0 };
+  const response = await catalogApi.get("/catalog/admin/policies/search", {
+    params: { q: query, limit },
+    headers: ADMIN_HEADERS,
+  });
+  return response.data;
+}
+
+export async function searchAdminRequirements({
+  q,
+  limit = 15,
+} = {}) {
+  const query = (q ?? "").trim();
+  if (!query) return { items: [], total: 0 };
+  const response = await catalogApi.get("/catalog/admin/requirements/search", {
+    params: { q: query, limit },
+    headers: ADMIN_HEADERS,
+  });
+  return response.data;
+}
+
+export async function saveAdminRequirementRecord(payload) {
+  const response = await catalogApi.post(
+    "/catalog/admin/requirements/save",
+    payload,
+    { headers: ADMIN_HEADERS },
+  );
+  return response.data;
+}
+
+export async function deleteAdminRequirementRecord(requirementId) {
+  const response = await catalogApi.delete(
+    `/catalog/admin/requirements/${requirementId}`,
+    { headers: ADMIN_HEADERS },
+  );
+  return response.data;
+}
+
+export async function updateAdminRequirementStatus(requirementId, policyStatus) {
+  const response = await catalogApi.patch(
+    `/catalog/admin/requirements/${requirementId}/status`,
+    { policy_status: policyStatus },
+    { headers: ADMIN_HEADERS },
+  );
+  return response.data;
+}
+export async function listAdminSystemKpis() {
+  const response = await catalogApi.get(
+    "/catalog/admin/system-kpis",
+    { headers: ADMIN_HEADERS },
+  );
+  return Array.isArray(response.data) ? response.data : [];
+}

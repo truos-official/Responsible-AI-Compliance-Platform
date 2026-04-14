@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { api } from '../api/client.js';
 import { useApp } from '../context/AppContext.jsx';
@@ -16,6 +16,90 @@ const STEP_DEFS = [
   { num: 8, label: 'Solution Design' },
   { num: 9, label: 'System Performance' },
 ];
+const NEW_REQUIREMENT_MARKER_KEY_PREFIX = 'aigov.new_requirements';
+const HIDDEN_REQUIREMENT_ROW_KEY_PREFIX = 'aigov.hidden_requirement_rows';
+
+function newRequirementMarkerStorageKey(appId) {
+  return `${NEW_REQUIREMENT_MARKER_KEY_PREFIX}.${String(appId || '').trim()}`;
+}
+
+function loadNewRequirementMarkers(appId) {
+  if (!appId || typeof window === 'undefined') return new Set();
+  const raw = window.localStorage.getItem(newRequirementMarkerStorageKey(appId));
+  if (!raw) return new Set();
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((value) => String(value || '').trim()).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+function consumeNewRequirementMarkers(appId, requirementIds) {
+  if (!appId || typeof window === 'undefined' || !Array.isArray(requirementIds) || requirementIds.length === 0) {
+    return;
+  }
+  const key = newRequirementMarkerStorageKey(appId);
+  const current = loadNewRequirementMarkers(appId);
+  let changed = false;
+  requirementIds.forEach((id) => {
+    const normalized = String(id || '').trim();
+    if (normalized && current.has(normalized)) {
+      current.delete(normalized);
+      changed = true;
+    }
+  });
+  if (changed) {
+    if (current.size === 0) {
+      window.localStorage.removeItem(key);
+    } else {
+      window.localStorage.setItem(key, JSON.stringify(Array.from(current)));
+    }
+  }
+}
+
+function hiddenRequirementRowStorageKey(appId) {
+  return `${HIDDEN_REQUIREMENT_ROW_KEY_PREFIX}.${String(appId || '').trim()}`;
+}
+
+function buildDashboardRowKey(row) {
+  const controlId = String(row?.control_id || '').trim();
+  const metricName = String(row?.metric_name || '').trim();
+  const requirementId = String(row?.requirement_id || '').trim();
+  return `${controlId}::${metricName}::${requirementId}`;
+}
+
+function isUuidLike(value) {
+  const text = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text);
+}
+
+function loadHiddenRequirementRows(appId) {
+  if (!appId || typeof window === 'undefined') return new Set();
+  const raw = window.localStorage.getItem(hiddenRequirementRowStorageKey(appId));
+  if (!raw) return new Set();
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((value) => String(value || '').trim()).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+function persistHiddenRequirementRows(appId, rowKeys) {
+  if (!appId || typeof window === 'undefined') {
+    return;
+  }
+  const storageKey = hiddenRequirementRowStorageKey(appId);
+  const normalized = Array.from(new Set((rowKeys || []).map((value) => String(value || '').trim()).filter(Boolean)));
+  if (!normalized.length) {
+    window.localStorage.removeItem(storageKey);
+    return;
+  }
+  window.localStorage.setItem(storageKey, JSON.stringify(normalized));
+}
 
 const BASELINE_STEP2_KPI_COUNT = 10;
 
@@ -53,7 +137,13 @@ function mapJurisdictionToRegion(jurisdiction) {
   if (!text) {
     return 'Global';
   }
-  if (text.includes('international') || text.includes('global') || text.includes('un ')) {
+  if (
+    text.includes('international')
+    || text.includes('global')
+    || text.includes('worldwide')
+    || text.includes('un ')
+    || text.includes('united nations')
+  ) {
     return 'Global';
   }
   if (
@@ -100,6 +190,100 @@ function mapJurisdictionToRegion(jurisdiction) {
   return 'Global';
 }
 
+function normalizeJurisdictionKey(jurisdiction) {
+  const raw = String(jurisdiction || '').trim();
+  if (!raw) {
+    return '';
+  }
+  const lower = raw.toLowerCase();
+  if (lower === 'intl' || lower === 'international' || lower === 'worldwide' || lower === 'global') {
+    return 'Worldwide';
+  }
+  if (lower === 'eu' || lower === 'uk' || lower === 'us') {
+    return lower.toUpperCase();
+  }
+  if (/^us-[a-z]{2}$/i.test(raw)) {
+    return raw.toUpperCase();
+  }
+  if (lower === 'un' || lower === 'united nations') {
+    return 'United Nations';
+  }
+  return raw;
+}
+
+function isDisplayableJurisdiction(jurisdiction) {
+  const normalized = normalizeJurisdictionKey(jurisdiction);
+  if (!normalized) {
+    return false;
+  }
+  const lower = normalized.toLowerCase();
+  if (lower === 'placeholder' || lower === 'unknown' || lower === 'n/a') {
+    return false;
+  }
+  return true;
+}
+
+function formatJurisdictionLabel(jurisdiction) {
+  const normalized = normalizeJurisdictionKey(jurisdiction);
+  if (!normalized) {
+    return 'N/A';
+  }
+  const upper = normalized.toUpperCase();
+  const usStateNames = {
+    CA: 'California',
+    CO: 'Colorado',
+    IL: 'Illinois',
+    NY: 'New York',
+    TX: 'Texas',
+    UT: 'Utah',
+    WA: 'Washington',
+  };
+  if (/^US-[A-Z]{2}$/.test(upper)) {
+    const code = upper.split('-')[1];
+    return usStateNames[code] ? `United States (${usStateNames[code]})` : `United States (${code})`;
+  }
+  if (upper === 'US') {
+    return 'United States';
+  }
+  if (upper === 'EU') {
+    return 'European Union';
+  }
+  if (upper === 'UK') {
+    return 'United Kingdom';
+  }
+  if (normalized === 'United Nations') {
+    return 'UN System';
+  }
+  return normalized;
+}
+
+function normalizeRegulationUniverseTitle(title, jurisdiction) {
+  const rawTitle = String(title || '').trim();
+  const normalizedJurisdiction = normalizeJurisdictionKey(jurisdiction);
+  const lowerTitle = rawTitle.toLowerCase();
+  const isUnDocumentCode = /^(a\/hrc\/\d+\/\d+|a\/\d+\/\d+|e\/c\.\d+\/\d+\/\d+|k\d{7}|n\d{7}|ceb[_-]\d{4})/i.test(rawTitle);
+  const isChinaDocumentCode = /^(a\/\d+\/\d+|china[\s_-]*\w+|[a-z]{1,3}\/\d+\/\d+)/i.test(rawTitle);
+  if (
+    normalizedJurisdiction === 'United Nations'
+    || lowerTitle.startsWith('un ai governance source')
+    || lowerTitle.startsWith('united nations -')
+    || isUnDocumentCode
+  ) {
+    return 'UN Policies';
+  }
+  if (
+    String(normalizedJurisdiction || '').toLowerCase() === 'china'
+    || lowerTitle.startsWith('china ai governance source')
+    || lowerTitle.startsWith('china -')
+    || lowerTitle.startsWith("people's republic of china")
+    || lowerTitle.startsWith('prc -')
+    || isChinaDocumentCode && lowerTitle.includes('china')
+  ) {
+    return 'China Policies';
+  }
+  return rawTitle;
+}
+
 function isValidRegulationTitle(title) {
   const normalized = String(title || '').trim();
   if (!normalized) {
@@ -119,11 +303,13 @@ function normalizeRequirementItem(raw) {
     id: raw.requirement_id || raw.id || '',
     code: raw.code || 'N/A',
     title: raw.title || '',
+    description: raw.description || '',
     regulation_title: raw.regulation_title || null,
     jurisdiction: raw.jurisdiction || null,
     category: raw.category || null,
     selected: Boolean(raw.selected),
     is_default: Boolean(raw.is_default),
+    added_at: raw.added_at || null,
     linked_controls: Array.isArray(raw.linked_controls)
       ? raw.linked_controls
         .map((control) => ({
@@ -379,6 +565,78 @@ function formatStep2MetricValue(metricName, value) {
   return meta.unitSuffix ? `${rounded}${meta.unitSuffix}` : `${rounded}`;
 }
 
+function getGovernanceRowStatusLabel(row, applicationSpecificView = false) {
+  const status = row?.display_result || row?.result || 'N/A';
+  if (applicationSpecificView && status === 'INSUFFICIENT_DATA') {
+    return 'MANUAL';
+  }
+  return status;
+}
+
+function getGovernanceRowValueLabel(row, applicationSpecificView = false) {
+  const status = row?.display_result || row?.result || 'N/A';
+  if (status === 'MANUAL') {
+    return 'Manual';
+  }
+  if (applicationSpecificView && status === 'INSUFFICIENT_DATA') {
+    return 'Unavailable';
+  }
+  const formatted = formatStep2MetricValue(row?.metric_name, row?.value);
+  return formatted === 'N/A' ? 'Unavailable' : formatted;
+}
+
+function isManualGovernanceRow(row) {
+  const status = String(row?.display_result || row?.result || '').toUpperCase();
+  return status === 'MANUAL' || Boolean(row?.is_manual);
+}
+
+function getManualGovernanceState(row) {
+  return typeof row?.value === 'number' && !Number.isNaN(row.value) && row.value >= 100
+    ? 'completed'
+    : 'pending';
+}
+
+function summarizeGovernanceRowStatus(row) {
+  const status = String(row?.display_result || row?.result || '').toUpperCase();
+  if (isManualGovernanceRow(row)) {
+    return getManualGovernanceState(row) === 'completed' ? 'PASS' : 'FAIL';
+  }
+  if (status === 'PASS' || status === 'FAIL') {
+    return status;
+  }
+  return 'INSUFFICIENT_DATA';
+}
+
+function computeGovernanceStatusCounts(rows = []) {
+  return (rows || []).reduce((acc, row) => {
+    const normalized = summarizeGovernanceRowStatus(row);
+    if (normalized === 'PASS') acc.pass += 1;
+    else if (normalized === 'FAIL') acc.fail += 1;
+    else acc.noData += 1;
+    return acc;
+  }, { pass: 0, fail: 0, noData: 0 });
+}
+
+function computeCategoryCompliancePct(...rowGroups) {
+  const rows = rowGroups.flatMap((group) => (Array.isArray(group) ? group : []));
+  const total = rows.length;
+  if (!total) return 0;
+  const completed = rows.filter((row) => (
+    typeof row?.value === 'number' && !Number.isNaN(row.value) && row.value > 0
+  )).length;
+  return Math.round((completed / total) * 100);
+}
+
+function deriveRiskTierFromComplianceScore(scorePct) {
+  if (typeof scorePct !== 'number' || Number.isNaN(scorePct)) {
+    return null;
+  }
+  if (scorePct >= 75) return 'Low';
+  if (scorePct >= 50) return 'Medium';
+  if (scorePct >= 25) return 'High';
+  return 'Very High';
+}
+
 function toStep2DisplayNumber(metricName, value) {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return null;
@@ -399,6 +657,9 @@ function toStep2DisplayNumber(metricName, value) {
 
 function getStep2InterpretationText(row) {
   const metricLabel = getStep2MetricMeta(row?.metric_name).label;
+  if ((row?.display_result || row?.result) === 'MANUAL') {
+    return `${metricLabel} is configured as a manual KPI and requires user attestation/evidence input.`;
+  }
   if (row?.benchmark_result === 'PASS') {
     return `${metricLabel} meets the configured benchmark test against industry and peer baselines.`;
   }
@@ -593,11 +854,16 @@ function toRatio(value) {
   return value / 100;
 }
 
-function buildCorporateOversightRows(selectedApp, snapshot, summary, finopsRows = []) {
+function buildCorporateOversightRows(selectedApp, snapshot, summary, stepRows = []) {
   const app = selectedApp || {};
   const profile = summary && typeof summary === 'object' ? summary : app;
   const telemetry = snapshot?.telemetry || {};
   const compliance = snapshot?.compliance || {};
+  const apiRows = Array.isArray(stepRows) ? stepRows.filter((row) => row?.requirement_id) : [];
+  // Step 1 should be rendered from scoped DB/API rows when available.
+  if (apiRows.length > 0) {
+    return apiRows;
+  }
 
   const ownerAssigned = Boolean(app.owner_email || profile.owner_email);
   const divisionAssigned = Boolean(app.division_id || profile.division_id);
@@ -629,6 +895,8 @@ function buildCorporateOversightRows(selectedApp, snapshot, summary, finopsRows 
 
   const baseRows = [
     {
+      control_id: 'co-control-owner-assignment',
+      requirement_id: 'co-req-owner-assignment',
       control_title: 'Accountability Owner Assignment',
       requirement_title: 'An accountable owner must be explicitly assigned for governance accountability.',
       metric_name: 'governance.owner_assignment_pct',
@@ -639,6 +907,8 @@ function buildCorporateOversightRows(selectedApp, snapshot, summary, finopsRows 
       peer_benchmark: 0.9,
     },
     {
+      control_id: 'co-control-division-governance-ownership',
+      requirement_id: 'co-req-division-governance-ownership',
       control_title: 'Division Governance Ownership',
       requirement_title: 'Each application must be mapped to a division or governance accountability unit.',
       metric_name: 'governance.division_assignment_pct',
@@ -649,6 +919,8 @@ function buildCorporateOversightRows(selectedApp, snapshot, summary, finopsRows 
       peer_benchmark: 0.9,
     },
     {
+      control_id: 'co-control-registration-completeness',
+      requirement_id: 'co-req-registration-completeness',
       control_title: 'Governance Registration Completeness',
       requirement_title: 'Corporate oversight requires a complete application governance profile.',
       metric_name: 'governance.profile_completeness_pct',
@@ -659,6 +931,8 @@ function buildCorporateOversightRows(selectedApp, snapshot, summary, finopsRows 
       peer_benchmark: 0.85,
     },
     {
+      control_id: 'co-control-telemetry-pipeline-health',
+      requirement_id: 'co-req-telemetry-pipeline-health',
       control_title: 'Telemetry Pipeline Operational Health',
       requirement_title: 'Oversight monitoring requires a healthy telemetry ingestion pipeline.',
       metric_name: 'governance.telemetry_pipeline_health_pct',
@@ -669,6 +943,8 @@ function buildCorporateOversightRows(selectedApp, snapshot, summary, finopsRows 
       peer_benchmark: 0.85,
     },
     {
+      control_id: 'co-control-telemetry-recency',
+      requirement_id: 'co-req-telemetry-recency',
       control_title: 'Telemetry Recency Oversight',
       requirement_title: 'Oversight KPIs must be based on fresh telemetry data.',
       metric_name: 'governance.telemetry_freshness_hours',
@@ -679,6 +955,8 @@ function buildCorporateOversightRows(selectedApp, snapshot, summary, finopsRows 
       peer_benchmark: 18,
     },
     {
+      control_id: 'co-control-compliance-monitoring-coverage',
+      requirement_id: 'co-req-compliance-monitoring-coverage',
       control_title: 'Compliance Monitoring Coverage',
       requirement_title: 'Corporate oversight requires ongoing control compliance monitoring.',
       metric_name: 'governance.compliance_pass_rate_pct',
@@ -697,8 +975,8 @@ function buildCorporateOversightRows(selectedApp, snapshot, summary, finopsRows 
     'ai.resources.cost_per_token',
     'ai.resources.frontier_model_count',
   ]);
-  const finopsTelemetryRows = Array.isArray(finopsRows)
-    ? finopsRows
+  const finopsTelemetryRows = Array.isArray(stepRows)
+    ? stepRows
       .filter((row) => finopsMetricNames.has(row?.metric_name))
       .map((row) => ({
         ...row,
@@ -1036,22 +1314,25 @@ StepBasicPanel.propTypes = {
   fmtNum: PropTypes.func.isRequired,
 };
 
-export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
+export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode }) {
   const { selectedApp } = useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeStep, setActiveStep] = useState(null);
   const [loadingStepDetail, setLoadingStepDetail] = useState(false);
   const [stepDetailError, setStepDetailError] = useState('');
-  const [showAllCorporate, setShowAllCorporate] = useState(false);
-  const [showAllMandatory, setShowAllMandatory] = useState(false);
-  const [showAllTechnical, setShowAllTechnical] = useState(false);
-  const [showAllDataReadiness, setShowAllDataReadiness] = useState(false);
-  const [showAllDataIntegration, setShowAllDataIntegration] = useState(false);
-  const [showAllSecurity, setShowAllSecurity] = useState(false);
-  const [showAllInfrastructure, setShowAllInfrastructure] = useState(false);
-  const [showAllSolutionDesign, setShowAllSolutionDesign] = useState(false);
-  const [showAllSystemPerformance, setShowAllSystemPerformance] = useState(false);
+  const [corporateRequirementListView, setCorporateRequirementListView] = useState('baseline');
+  const [stepRequirementListView, setStepRequirementListView] = useState({
+    1: 'baseline',
+    2: 'baseline',
+    3: 'baseline',
+    4: 'baseline',
+    5: 'baseline',
+    6: 'baseline',
+    7: 'baseline',
+    8: 'baseline',
+    9: 'baseline',
+  });
   const [detailCache, setDetailCache] = useState({
     benchmarks: null,
     history: null,
@@ -1093,6 +1374,16 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
   const [scopeSaving, setScopeSaving] = useState(false);
   const [scopeError, setScopeError] = useState('');
   const [scopeNotice, setScopeNotice] = useState('');
+  const [removeRequirementModal, setRemoveRequirementModal] = useState(null);
+  const [removingRequirement, setRemovingRequirement] = useState(false);
+  const [requirementDetailModal, setRequirementDetailModal] = useState(null);
+  const [requirementDetailLoading, setRequirementDetailLoading] = useState(false);
+  const [requirementDetailError, setRequirementDetailError] = useState('');
+  const [rowActionNotice, setRowActionNotice] = useState('');
+  const [rowActionError, setRowActionError] = useState('');
+  const [manualKpiSavingRowKeys, setManualKpiSavingRowKeys] = useState(new Set());
+  const [newRequirementIds, setNewRequirementIds] = useState(new Set());
+  const [hiddenRequirementRowKeys, setHiddenRequirementRowKeys] = useState(new Set());
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [catalogSearchLoading, setCatalogSearchLoading] = useState(false);
   const [catalogSearchError, setCatalogSearchError] = useState('');
@@ -1103,6 +1394,10 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
   const [systemOverview, setSystemOverview] = useState({
     totalApps: 0,
     connectedApps: 0,
+    totalCoreControls: 0,
+    totalCustomControls: 0,
+    policyTypes: [],
+    activeControlByCategory: [],
     distinctRules: 0,
     totalRequirements: 0,
     distinctControls: 0,
@@ -1125,6 +1420,10 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     telemetryStatus: 'N/A',
     totalInterpretations: 0,
     regulations: [],
+    regulationRankings: [],
+    totalBaselineRequirements: 0,
+    totalAppSpecificRequirements: 0,
+    recentRequirementTicker: [],
     topJurisdictions: [],
     regionCounts: {},
   });
@@ -1250,30 +1549,46 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     }
 
     const regulationSet = new Set(
+      requirements
+        .map((item) => String(item?.regulation_title || '').trim())
+        .filter((title) => isValidRegulationTitle(title))
+    );
+    if (regulationSet.size === 0) {
       regulations
         .map((item) => String(item?.title || '').trim())
         .filter((title) => isValidRegulationTitle(title))
+        .forEach((title) => regulationSet.add(title));
+    }
+    const governanceCategorySet = new Set(STEP_DEFS.map((step) => String(step.label || '').trim().toLowerCase()));
+    const requirementCategorySet = new Set(
+      requirements
+        .map((item) => String(item?.category || '').trim())
+        .filter((category) => governanceCategorySet.has(category.toLowerCase()))
     );
+    const policyTypes = Array.from(
+      new Set(
+        requirements
+          .map((item) => String(item?.policy_type || '').trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
     const jurisdictionCounts = {};
-    regulations.forEach((item) => {
-      const jurisdiction = String(item?.jurisdiction || '').trim();
-      if (!jurisdiction) {
+    requirements.forEach((item) => {
+      const jurisdiction = normalizeJurisdictionKey(item?.jurisdiction);
+      if (!isDisplayableJurisdiction(jurisdiction)) {
         return;
       }
-      const weight = Number(item?.requirement_count ?? 0);
-      jurisdictionCounts[jurisdiction] = (jurisdictionCounts[jurisdiction] || 0) + (Number.isFinite(weight) && weight > 0 ? weight : 1);
+      jurisdictionCounts[jurisdiction] = (jurisdictionCounts[jurisdiction] || 0) + 1;
     });
 
-    if (regulationSet.size === 0 || Object.keys(jurisdictionCounts).length === 0) {
-      requirements.forEach((item) => {
-        const regulationTitle = String(item?.regulation_title || '').trim();
-        if (isValidRegulationTitle(regulationTitle)) {
-          regulationSet.add(regulationTitle);
+    if (Object.keys(jurisdictionCounts).length === 0) {
+      regulations.forEach((item) => {
+        const jurisdiction = normalizeJurisdictionKey(item?.jurisdiction);
+        if (!isDisplayableJurisdiction(jurisdiction)) {
+          return;
         }
-        const jurisdiction = String(item?.jurisdiction || '').trim();
-        if (jurisdiction) {
-          jurisdictionCounts[jurisdiction] = (jurisdictionCounts[jurisdiction] || 0) + 1;
-        }
+        const weight = Number(item?.requirement_count ?? 0);
+        jurisdictionCounts[jurisdiction] = (jurisdictionCounts[jurisdiction] || 0) + (Number.isFinite(weight) && weight > 0 ? weight : 1);
       });
     }
 
@@ -1283,12 +1598,29 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       regionCounts[region] = (regionCounts[region] || 0) + Number(count || 0);
     });
 
-    const topJurisdictions = Object.entries(jurisdictionCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([name, count]) => ({ name, count }));
+    const sortedJurisdictionRows = Object.entries(jurisdictionCounts)
+      .sort((a, b) => {
+        const byCount = b[1] - a[1];
+        if (byCount !== 0) {
+          return byCount;
+        }
+        return a[0].localeCompare(b[0]);
+      });
+    const topJurisdictionLimit = 8;
+    let topJurisdictionRows = sortedJurisdictionRows.slice(0, topJurisdictionLimit);
+    if (sortedJurisdictionRows.length > topJurisdictionLimit && topJurisdictionRows.length > 0) {
+      const cutoffCount = Number(topJurisdictionRows[topJurisdictionRows.length - 1][1] || 0);
+      topJurisdictionRows = sortedJurisdictionRows.filter(([, count], index) => (
+        index < topJurisdictionLimit || Number(count || 0) === cutoffCount
+      ));
+    }
+    const topJurisdictions = topJurisdictionRows.map(([name, count]) => ({
+      name,
+      label: formatJurisdictionLabel(name),
+      count,
+    }));
 
-    const riskComplianceDomainSet = new Set(['risk management', 'regulatory', 'governance', 'audit', 'privacy']);
+    const riskComplianceDomainSet = new Set(['risk & compliance']);
     const normalizedControls = controls.map((item) => ({
       domain: String(item?.domain || '').trim().toLowerCase(),
       measurementMode: String(item?.measurement_mode || '').trim().toLowerCase(),
@@ -1298,9 +1630,243 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     const riskComplianceDomainsPresent = new Set(riskComplianceControls.map((item) => item.domain)).size;
     const controlsWithMeasuresFallback = normalizedControls.filter((item) => item.measurementMode !== 'manual').length;
 
+    const requirementById = new Map(
+      requirements
+        .map((item) => {
+          const reqId = String(item?.id || '').trim();
+          return reqId
+            ? [reqId, item]
+            : null;
+        })
+        .filter(Boolean)
+    );
+
+    const activeApplicationIds = applications
+      .filter((item) => String(item?.status || '').toLowerCase() !== 'disconnected')
+      .map((item) => String(item?.id || '').trim())
+      .filter(Boolean);
+    const controlModeById = new Map(
+      controls
+        .map((item) => {
+          const controlId = String(item?.id || '').trim();
+          if (!controlId) {
+            return null;
+          }
+          return [controlId, String(item?.measurement_mode || '').trim().toLowerCase()];
+        })
+        .filter(Boolean)
+    );
+    const baselineAssignedRequirementIds = new Set();
+    const appSpecificAssignedRequirementIds = new Set();
+    const baselineAssignedControlIds = new Set();
+    const appSpecificAssignedControlIds = new Set();
+    const recentRequirementTickerMap = new Map();
+    const activeControlsByCategory = new Map(
+      STEP_DEFS.map((step) => [
+        String(step.label || '').trim().toLowerCase(),
+        {
+          category: String(step.label || '').trim(),
+          activeTelemetry: new Set(),
+          activeManual: new Set(),
+          inactiveTelemetry: new Set(),
+          inactiveManual: new Set(),
+        },
+      ])
+    );
+    if (activeApplicationIds.length > 0) {
+      const appScopeResults = await Promise.allSettled(
+        activeApplicationIds.map((appId) => api.getApplicationRequirements(appId, 'skip=0&limit=200'))
+      );
+      if (appScopeResults.some((result) => result.status !== 'fulfilled')) {
+        failed.push('application_scope');
+      }
+      appScopeResults.forEach((result) => {
+        if (result.status !== 'fulfilled') {
+          return;
+        }
+        const items = Array.isArray(result.value?.items) ? result.value.items : [];
+        items.forEach((item) => {
+          const reqId = String(item?.requirement_id || '').trim();
+          if (!reqId) {
+            return;
+          }
+          const categoryLabel = String(item?.category || '').trim();
+          const categoryKey = categoryLabel.toLowerCase();
+          const categoryBucket = activeControlsByCategory.get(categoryKey);
+          const reqDetail = requirementById.get(reqId) || {};
+          const addedAt = item?.added_at || null;
+          const currentTicker = recentRequirementTickerMap.get(reqId);
+          const currentTs = currentTicker?.added_at ? Date.parse(currentTicker.added_at) : Number.NEGATIVE_INFINITY;
+          const nextTs = addedAt ? Date.parse(addedAt) : Number.NEGATIVE_INFINITY;
+          if (!currentTicker || nextTs > currentTs) {
+            recentRequirementTickerMap.set(reqId, {
+              id: reqId,
+              title: String(item?.title || reqDetail?.title || '').trim() || 'Untitled requirement',
+              description: String(reqDetail?.description || '').trim() || 'No description available.',
+              category: String(item?.category || reqDetail?.category || '').trim() || 'Uncategorized',
+              policy_title:
+                String(
+                  item?.regulation_title
+                  || reqDetail?.regulation_title
+                  || reqDetail?.policy_title
+                  || ''
+                ).trim() || 'Policy Unspecified',
+              added_at: addedAt,
+            });
+          }
+          (Array.isArray(item?.linked_controls) ? item.linked_controls : []).forEach((control) => {
+            const controlId = String(control?.id || '').trim();
+            if (!controlId) {
+              return;
+            }
+            const controlMode = String(controlModeById.get(controlId) || '').trim().toLowerCase();
+            const metricName = String(control?.metric_name || '').trim().toLowerCase();
+            const isManual = controlMode === 'manual' || metricName.startsWith('manual.evidence.');
+
+            if (item?.selected) {
+              if (categoryBucket) {
+                if (isManual) {
+                  categoryBucket.activeManual.add(controlId);
+                  categoryBucket.inactiveManual.delete(controlId);
+                } else {
+                  categoryBucket.activeTelemetry.add(controlId);
+                  categoryBucket.inactiveTelemetry.delete(controlId);
+                }
+              }
+              if (item?.is_default) {
+                baselineAssignedRequirementIds.add(reqId);
+                baselineAssignedControlIds.add(controlId);
+              } else {
+                appSpecificAssignedRequirementIds.add(reqId);
+                appSpecificAssignedControlIds.add(controlId);
+              }
+            } else if (categoryBucket) {
+              if (isManual) {
+                if (!categoryBucket.activeManual.has(controlId)) {
+                  categoryBucket.inactiveManual.add(controlId);
+                }
+              } else if (!categoryBucket.activeTelemetry.has(controlId)) {
+                categoryBucket.inactiveTelemetry.add(controlId);
+              }
+            }
+          });
+        });
+      });
+    }
+
+    const foundationControlIds = controls
+      .filter((item) => Boolean(item?.is_foundation))
+      .map((item) => String(item?.id || '').trim())
+      .filter(Boolean);
+    const baselineRequirementIdSet = new Set();
+    if (foundationControlIds.length > 0 && baselineAssignedRequirementIds.size === 0) {
+      const baselineRequirementResults = await Promise.allSettled(
+        foundationControlIds.map((controlId) => api.getRequirements(`control_id=${encodeURIComponent(controlId)}&skip=0&limit=200`))
+      );
+      if (baselineRequirementResults.some((result) => result.status !== 'fulfilled')) {
+        failed.push('baseline_requirements');
+      }
+      baselineRequirementResults.forEach((result) => {
+        if (result.status !== 'fulfilled') {
+          return;
+        }
+        const items = Array.isArray(result.value?.items) ? result.value.items : [];
+        items.forEach((item) => {
+          const requirementId = String(item?.id || '').trim();
+          if (requirementId) {
+            baselineRequirementIdSet.add(requirementId);
+          }
+        });
+      });
+    }
+
+    const regulationUniverseMap = new Map();
+    requirements.forEach((item) => {
+      const regulationTitle = String(item?.regulation_title || '').trim();
+      if (!isValidRegulationTitle(regulationTitle)) {
+        return;
+      }
+      const normalizedJurisdiction = normalizeJurisdictionKey(item?.jurisdiction);
+      const universeTitle = normalizeRegulationUniverseTitle(regulationTitle, normalizedJurisdiction);
+      if (!regulationUniverseMap.has(universeTitle)) {
+        regulationUniverseMap.set(universeTitle, {
+          name: universeTitle,
+          totalRequirementIds: new Set(),
+          baselineRequirementIds: new Set(),
+          jurisdictions: new Set(),
+          sourceRegulations: new Set(),
+        });
+      }
+      const row = regulationUniverseMap.get(universeTitle);
+      const requirementId = String(item?.id || '').trim();
+      if (requirementId) {
+        row.totalRequirementIds.add(requirementId);
+        if (baselineRequirementIdSet.has(requirementId)) {
+          row.baselineRequirementIds.add(requirementId);
+        }
+      }
+      if (isDisplayableJurisdiction(normalizedJurisdiction)) {
+        row.jurisdictions.add(formatJurisdictionLabel(normalizedJurisdiction));
+      }
+      row.sourceRegulations.add(regulationTitle);
+    });
+
+    const regulationRankings = Array.from(regulationUniverseMap.values())
+      .map((item) => ({
+        name: item.name,
+        totalRequirements: item.totalRequirementIds.size,
+        baselineRequirements: item.baselineRequirementIds.size,
+        jurisdictionLabel: item.jurisdictions.size ? Array.from(item.jurisdictions).sort((a, b) => a.localeCompare(b)).join(', ') : 'N/A',
+        sourceCount: item.sourceRegulations.size,
+      }))
+      .filter((item) => item.totalRequirements > 0)
+      .sort((a, b) => {
+        if (b.totalRequirements !== a.totalRequirements) {
+          return b.totalRequirements - a.totalRequirements;
+        }
+        if (b.baselineRequirements !== a.baselineRequirements) {
+          return b.baselineRequirements - a.baselineRequirements;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    const totalBaselineRequirements = baselineAssignedRequirementIds.size || baselineRequirementIdSet.size;
+    const totalAppSpecificRequirements = appSpecificAssignedRequirementIds.size;
+    const totalCoreControls = baselineAssignedControlIds.size || controls.filter((item) => Boolean(item?.is_foundation)).length;
+    const totalCustomControls = appSpecificAssignedControlIds.size;
+    const activeControlByCategory = STEP_DEFS.map((step) => {
+      const bucket = activeControlsByCategory.get(String(step.label || '').trim().toLowerCase());
+      const activeTelemetry = bucket ? bucket.activeTelemetry.size : 0;
+      const activeManual = bucket ? bucket.activeManual.size : 0;
+      const inactiveTelemetry = bucket ? bucket.inactiveTelemetry.size : 0;
+      const inactiveManual = bucket ? bucket.inactiveManual.size : 0;
+      const activeTotal = activeTelemetry + activeManual;
+      const inactiveTotal = inactiveTelemetry + inactiveManual;
+      return {
+        category: String(step.label || '').trim(),
+        activeTelemetry,
+        activeManual,
+        activeTotal,
+        inactiveTelemetry,
+        inactiveManual,
+        inactiveTotal,
+        total: activeTotal + inactiveTotal,
+      };
+    });
+    const recentRequirementTicker = Array.from(recentRequirementTickerMap.values())
+      .sort((a, b) => {
+        const aTs = a.added_at ? Date.parse(a.added_at) : Number.NEGATIVE_INFINITY;
+        const bTs = b.added_at ? Date.parse(b.added_at) : Number.NEGATIVE_INFINITY;
+        return bTs - aTs;
+      })
+      .slice(0, 5);
+
     setSystemOverview({
       totalApps: applications.length,
       connectedApps: applications.filter((app) => app?.status === 'active').length,
+      totalCoreControls,
+      totalCustomControls,
+      policyTypes,
+      activeControlByCategory,
       distinctRules: Number(overviewStats?.distinct_rules ?? requirementPayload?.total ?? requirements.length ?? 0),
       totalRequirements: Number(overviewStats?.total_requirements ?? requirementPayload?.total ?? requirements.length ?? 0),
       distinctControls: Number(overviewStats?.total_controls ?? controlsPayload?.total ?? controls.length ?? 0),
@@ -1312,7 +1878,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       distinctMeasureMetrics: Number(overviewStats?.distinct_measure_metrics ?? 0),
       peerBenchmarkedMetrics: Number(overviewStats?.peer_benchmarked_metrics ?? 0),
       totalRuleControlLinks: Number(overviewStats?.total_control_requirement_links ?? 0),
-      distinctControlDomains: Number(overviewStats?.distinct_control_domains ?? 0),
+      distinctControlDomains: requirementCategorySet.size,
       riskComplianceControls: Number(overviewStats?.risk_compliance_controls ?? riskComplianceControls.length),
       riskComplianceMeasurableControls: Number(
         overviewStats?.risk_compliance_measurable_controls ?? riskComplianceMeasurableControls.length
@@ -1325,35 +1891,41 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       telemetryStatus: String(telemetry?.status || 'N/A'),
       totalInterpretations: Number(overviewStats?.total_interpretations ?? 0),
       regulations: Array.from(regulationSet).sort((a, b) => a.localeCompare(b)).slice(0, 18),
+      regulationRankings,
+      totalBaselineRequirements,
+      totalAppSpecificRequirements,
+      recentRequirementTicker,
       topJurisdictions,
       regionCounts,
     });
 
-    if (failed.length > 0) {
-      setOverviewError(`Some system data is unavailable: ${failed.join(', ')}`);
+    const userVisibleFailures = failed.filter((item) => item !== 'baseline_requirements');
+    if (userVisibleFailures.length > 0) {
+      setOverviewError(`Some system data is unavailable: ${userVisibleFailures.join(', ')}`);
     }
     setOverviewLoading(false);
   }, []);
 
   useEffect(() => {
-    if (!selectedApp) {
-      loadSystemOverview();
-    }
-  }, [loadSystemOverview, selectedApp]);
+    loadSystemOverview();
+  }, [loadSystemOverview]);
 
   useEffect(() => {
     setActiveStep(null);
     setLoadingStepDetail(false);
     setStepDetailError('');
-    setShowAllCorporate(false);
-    setShowAllMandatory(false);
-    setShowAllTechnical(false);
-    setShowAllDataReadiness(false);
-    setShowAllDataIntegration(false);
-    setShowAllSecurity(false);
-    setShowAllInfrastructure(false);
-    setShowAllSolutionDesign(false);
-    setShowAllSystemPerformance(false);
+    setCorporateRequirementListView('baseline');
+    setStepRequirementListView({
+      1: 'baseline',
+      2: 'baseline',
+      3: 'baseline',
+      4: 'baseline',
+      5: 'baseline',
+      6: 'baseline',
+      7: 'baseline',
+      8: 'baseline',
+      9: 'baseline',
+    });
     setDetailCache({
       benchmarks: null,
       history: null,
@@ -1390,11 +1962,34 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     setScopeSaving(false);
     setScopeError('');
     setScopeNotice('');
+    setRemoveRequirementModal(null);
+    setRemovingRequirement(false);
+    setRowActionNotice('');
+    setRowActionError('');
+    setManualKpiSavingRowKeys(new Set());
+    setNewRequirementIds(new Set());
+    setHiddenRequirementRowKeys(new Set());
     setCatalogSearchQuery('');
     setCatalogSearchLoading(false);
     setCatalogSearchError('');
     setCatalogSearchResults([]);
     setIndustryCategory('all');
+  }, [selectedApp?.id]);
+
+  useEffect(() => {
+    if (!selectedApp?.id) {
+      setNewRequirementIds(new Set());
+      return;
+    }
+    setNewRequirementIds(loadNewRequirementMarkers(selectedApp.id));
+  }, [selectedApp?.id]);
+
+  useEffect(() => {
+    if (!selectedApp?.id) {
+      setHiddenRequirementRowKeys(new Set());
+      return;
+    }
+    setHiddenRequirementRowKeys(loadHiddenRequirementRows(selectedApp.id));
   }, [selectedApp?.id]);
 
   const loadInterpretationRows = useCallback(async (requirementId) => {
@@ -1446,6 +2041,15 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     return items;
   }, [selectedApp?.id]);
 
+  useEffect(() => {
+    if (!selectedApp?.id) {
+      return;
+    }
+    loadRequirementScope().catch(() => {
+      // Non-blocking on initial render; step-level loaders surface errors as needed.
+    });
+  }, [loadRequirementScope, selectedApp?.id]);
+
   const filteredRequirements = useMemo(() => {
     const q = requirementFilter.trim().toLowerCase();
     if (!q) {
@@ -1462,6 +2066,158 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     () => new Set(scopedRequirementIds),
     [scopedRequirementIds]
   );
+
+  const requirementScopeById = useMemo(() => {
+    const map = new Map();
+    interpretationRequirements.forEach((item) => {
+      if (item?.id) {
+        map.set(String(item.id), item);
+      }
+    });
+    return map;
+  }, [interpretationRequirements]);
+
+  const isRowHidden = useCallback(
+    (row) => {
+      const requirementId = String(row?.requirement_id || '').trim();
+      const scopeItem = requirementId ? requirementScopeById.get(requirementId) : null;
+      // Secretariat baseline rows should always remain visible.
+      if (scopeItem?.is_default) {
+        return false;
+      }
+      const key = buildDashboardRowKey(row);
+      return Boolean(key && hiddenRequirementRowKeys.has(key));
+    },
+    [hiddenRequirementRowKeys, requirementScopeById]
+  );
+
+  const filterVisibleRows = useCallback(
+    (rows) => (Array.isArray(rows) ? rows.filter((row) => !isRowHidden(row)) : []),
+    [isRowHidden]
+  );
+
+  const splitRowsByRequirementType = useCallback(
+    (rows) => {
+      const baselineRows = [];
+      const applicationSpecificRows = [];
+      (rows || []).forEach((row) => {
+        const requirementId = String(row?.requirement_id || '').trim();
+        const scopeItem = requirementId ? requirementScopeById.get(requirementId) : null;
+        if (scopeItem?.is_default) {
+          baselineRows.push(row);
+        } else {
+          applicationSpecificRows.push(row);
+        }
+      });
+      return { baselineRows, applicationSpecificRows };
+    },
+    [requirementScopeById]
+  );
+
+  const isRowMarkedNew = useCallback(
+    (row) => {
+      const requirementId = String(row?.requirement_id || '').trim();
+      return Boolean(requirementId && newRequirementIds.has(requirementId));
+    },
+    [newRequirementIds]
+  );
+
+  const isRowRemovable = useCallback(
+    (row) => {
+      const rowKey = buildDashboardRowKey(row);
+      if (!rowKey) return false;
+      return true;
+    },
+    []
+  );
+
+  const renderRequirementRowHeader = useCallback((row, rowStatusClass, applicationSpecificView = false) => {
+    const rowStatusLabel = getGovernanceRowStatusLabel(row, applicationSpecificView);
+    const showNew = isRowMarkedNew(row);
+    const removable = isRowRemovable(row);
+    const requirementId = String(row?.requirement_id || '').trim();
+    const scopeItem = requirementId ? requirementScopeById.get(requirementId) : null;
+    const rowActionLabel = scopeItem?.selected && !scopeItem?.is_default ? 'Remove' : 'Hide';
+    const requirementTitle = row?.requirement_title || 'Requirement details are not available for this row.';
+    const requirementDescription = row?.requirement_description || 'Requirement description is not available.';
+    const controlTitle = String(row?.control_title || '').trim();
+    const normalizedControlTitle = controlTitle.toLowerCase();
+    const normalizedRequirementTitle = String(requirementTitle || '').trim().toLowerCase();
+    const showRequirementTitle = Boolean(
+      normalizedRequirementTitle
+      && normalizedRequirementTitle !== normalizedControlTitle
+    );
+    return (
+      <div style={{ display: 'grid', gap: '0.15rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
+              {row.control_title || 'Control'}
+            </div>
+            <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
+              {rowStatusLabel}
+            </span>
+            {showNew ? (
+              <span className="badge badge-blue" style={{ width: 'fit-content' }}>
+                NEW
+              </span>
+            ) : null}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="catalog-row-icon-action governance-row-icon-action"
+              onClick={() => openRequirementDetailModal(row)}
+              title="Requirement Detail"
+              aria-label="Open requirement detail"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+                <path d="M14 2v5h5" />
+                <path d="M9 13h6" />
+                <path d="M9 17h4" />
+              </svg>
+            </button>
+            {removable ? (
+              <button
+                type="button"
+                className={`catalog-row-icon-action governance-row-icon-action ${rowActionLabel === 'Remove' ? 'governance-row-icon-remove' : 'governance-row-icon-hide'}`}
+                onClick={() => openRemoveRequirementModal(row)}
+                disabled={removingRequirement}
+                title={rowActionLabel}
+                aria-label={rowActionLabel}
+              >
+                {rowActionLabel === 'Remove' ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 3l18 18" />
+                    <path d="M10.58 10.58a2 2 0 1 0 2.84 2.84" />
+                    <path d="M9.88 5.09A10.94 10.94 0 0 1 12 5c5 0 9.27 3.11 11 7-1 2.15-2.69 3.96-4.77 5.12" />
+                    <path d="M6.61 6.61C4.62 7.79 3 9.69 2 12c1.73 3.89 6 7 10 7 1.34 0 2.62-.27 3.8-.76" />
+                  </svg>
+                )}
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {showRequirementTitle ? (
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)', lineHeight: 1.35, fontWeight: 400 }}>
+            {requirementTitle}
+          </div>
+        ) : null}
+        <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+          {requirementDescription}
+        </div>
+      </div>
+    );
+  }, [isRowMarkedNew, isRowRemovable, openRemoveRequirementModal, openRequirementDetailModal, removingRequirement, requirementScopeById]);
 
   const interpretationRequirementOptions = useMemo(() => {
     const hasScopedRequirements = scopedRequirementIds.length > 0;
@@ -1712,6 +2468,269 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     }
   }, [loadRequirementScope, scopedRequirementIds, selectedApp?.id]);
 
+  async function openRequirementDetailModal(row) {
+    const requirementIdRaw = String(row?.requirement_id || '').trim();
+    let resolvedRequirementId = isUuidLike(requirementIdRaw) ? requirementIdRaw : '';
+    if (!resolvedRequirementId) {
+      const rowMetric = String(row?.metric_name || '').trim().toLowerCase();
+      const rowControl = String(row?.control_title || '').trim().toLowerCase();
+      const rowRequirement = String(row?.requirement_title || '').trim().toLowerCase();
+      const candidate = interpretationRequirements.find((item) => {
+        const linked = Array.isArray(item?.linked_controls) ? item.linked_controls : [];
+        const metricMatch = linked.some((ctrl) => String(ctrl?.metric_name || '').trim().toLowerCase() === rowMetric);
+        const controlMatch = linked.some((ctrl) => String(ctrl?.title || '').trim().toLowerCase() === rowControl);
+        const requirementMatch = String(item?.title || '').trim().toLowerCase() === rowRequirement;
+        return metricMatch || controlMatch || requirementMatch;
+      });
+      if (candidate && isUuidLike(candidate.id)) {
+        resolvedRequirementId = String(candidate.id);
+      }
+    }
+    const fallbackDetail = {
+      id: resolvedRequirementId || requirementIdRaw || null,
+      title: row?.requirement_title || 'Requirement',
+      description: row?.requirement_description || '',
+      category: STEP_DEFS.find((item) => item.num === activeStep)?.label || null,
+      regulation_title: row?.regulation_title || null,
+      jurisdiction: row?.jurisdiction || null,
+      policy_source: row?.policy_source || null,
+      policy_type: row?.policy_type || null,
+      policy_status: row?.policy_status || null,
+      code: row?.requirement_code || null,
+      control_title: row?.control_title || null,
+      metric_name: row?.metric_name || null,
+      metric_definition: row?.metric_definition || (row?.threshold?.formula || null),
+      interpretation_text: row?.interpretation_text || null,
+      threshold: row?.threshold || null,
+    };
+    setRequirementDetailError('');
+    setRequirementDetailLoading(true);
+    setRequirementDetailModal({ row, detail: fallbackDetail });
+    if (!isUuidLike(resolvedRequirementId)) {
+      setRequirementDetailLoading(false);
+      return;
+    }
+    try {
+      const detail = await api.getRequirement(resolvedRequirementId);
+      setRequirementDetailModal((prev) => ({
+        row,
+        detail: {
+          ...fallbackDetail,
+          ...(prev?.detail || {}),
+          ...detail,
+        },
+      }));
+    } catch (e) {
+      setRequirementDetailError(e.message || 'Failed to load full requirement detail.');
+    } finally {
+      setRequirementDetailLoading(false);
+    }
+  }
+
+  function closeRequirementDetailModal() {
+    if (requirementDetailLoading) return;
+    setRequirementDetailModal(null);
+    setRequirementDetailError('');
+  }
+
+  function renderRequirementDetailModal() {
+    if (!requirementDetailModal) {
+      return null;
+    }
+    return (
+      <div
+        className="catalog-modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Requirement detail"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) closeRequirementDetailModal();
+        }}
+      >
+        <div className="catalog-modal catalog-animate-enter" style={{ width: 'min(760px, 100%)' }}>
+          <div className="catalog-modal-header">
+            <div className="catalog-modal-heading">
+              <h3>Requirement Detail</h3>
+              <p>{requirementDetailModal?.detail?.title || 'Requirement'}</p>
+            </div>
+          </div>
+          <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: 0 }}>
+            {requirementDetailLoading ? (
+              <p className="catalog-modal-helper-text" style={{ margin: 0 }}>
+                Loading requirement detail...
+              </p>
+            ) : null}
+            {requirementDetailError ? (
+              <div className="alert alert-danger" style={{ marginBottom: '0.55rem' }}>
+                {requirementDetailError}
+              </div>
+            ) : null}
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <div style={{ display: 'grid', gap: '0.15rem' }}>
+                <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Requirement Title</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>{requirementDetailModal?.detail?.title || '-'}</div>
+              </div>
+              <div style={{ display: 'grid', gap: '0.15rem' }}>
+                <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Requirement Description</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  {requirementDetailModal?.detail?.description || 'No requirement description available.'}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.45rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Regulation</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)' }}>{requirementDetailModal?.detail?.regulation_title || '-'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Jurisdiction</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)' }}>{requirementDetailModal?.detail?.jurisdiction || '-'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Control</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)' }}>{requirementDetailModal?.detail?.control_title || '-'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metric</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)' }}>{requirementDetailModal?.detail?.metric_name || '-'}</div>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.45rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Policy Source</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)' }}>{requirementDetailModal?.detail?.policy_source || '-'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Policy Type</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)' }}>{requirementDetailModal?.detail?.policy_type || '-'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Policy Status</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-primary)' }}>{requirementDetailModal?.detail?.policy_status || '-'}</div>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gap: '0.15rem' }}>
+                <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metric Definition</div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  {requirementDetailModal?.detail?.metric_definition || 'No metric definition text available.'}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gap: '0.15rem' }}>
+                <div style={{ fontSize: '0.69rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Interpretation</div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  {requirementDetailModal?.detail?.interpretation_text || 'No interpretation text available.'}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.45rem', marginTop: '0.65rem' }}>
+            <button type="button" className="btn-secondary" onClick={closeRequirementDetailModal} disabled={requirementDetailLoading}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function openRemoveRequirementModal(row) {
+    const requirementId = String(row?.requirement_id || '').trim();
+    const rowKey = buildDashboardRowKey(row);
+    if (!rowKey) {
+      setRowActionError('This row cannot be removed because its row key is missing.');
+      return;
+    }
+    const scopeItem = requirementId ? requirementScopeById.get(requirementId) : null;
+    const isScopeRemove = Boolean(requirementId && scopeItem?.selected && !scopeItem?.is_default);
+    setRowActionError('');
+    setRowActionNotice('');
+    setRemoveRequirementModal({
+      mode: isScopeRemove ? 'scope' : 'view',
+      rowKey,
+      requirementId: requirementId || null,
+      requirementTitle: row?.requirement_title || scopeItem?.title || 'Requirement',
+      controlTitle: row?.control_title || 'Control',
+    });
+  }
+
+  function closeRemoveRequirementModal() {
+    if (removingRequirement) return;
+    setRemoveRequirementModal(null);
+  }
+
+  async function confirmRemoveRequirement() {
+    if (!selectedApp?.id || !removeRequirementModal) {
+      return;
+    }
+    if (removeRequirementModal.mode === 'view') {
+      const rowKey = String(removeRequirementModal.rowKey || '').trim();
+      if (!rowKey) {
+        setRowActionError('Unable to remove this row because its view key is missing.');
+        return;
+      }
+      const nextKeys = new Set(hiddenRequirementRowKeys);
+      nextKeys.add(rowKey);
+      setHiddenRequirementRowKeys(nextKeys);
+      persistHiddenRequirementRows(selectedApp.id, Array.from(nextKeys));
+      setRemoveRequirementModal(null);
+      setRowActionError('');
+      setRowActionNotice('Requirement removed from Governance detail view.');
+      return;
+    }
+    if (!removeRequirementModal.requirementId) {
+      setRowActionError('This requirement cannot be removed from app scope because requirement_id is missing.');
+      return;
+    }
+    setRemovingRequirement(true);
+    setRowActionError('');
+    setRowActionNotice('');
+    try {
+      const payload = await api.getApplicationRequirements(selectedApp.id, 'limit=500');
+      const scopeItems = Array.isArray(payload?.items) ? payload.items : [];
+      const selectedIds = scopeItems
+        .filter((item) => Boolean(item?.selected))
+        .map((item) => String(item?.requirement_id || '').trim())
+        .filter(Boolean);
+      const targetId = String(removeRequirementModal.requirementId);
+      const targetScopeItem = scopeItems.find((item) => String(item?.requirement_id || '').trim() === targetId);
+      if (targetScopeItem?.is_default) {
+        setRowActionError('Baseline requirements cannot be removed from Governance view.');
+        return;
+      }
+      if (!targetScopeItem?.selected) {
+        setRowActionError('This requirement is not assigned to the selected application scope.');
+        return;
+      }
+      const nextIds = selectedIds.filter((id) => id !== targetId);
+      await api.setApplicationRequirements(selectedApp.id, nextIds);
+      consumeNewRequirementMarkers(selectedApp.id, [targetId]);
+      setNewRequirementIds((prev) => {
+        const next = new Set(prev);
+        next.delete(targetId);
+        return next;
+      });
+      setScopedRequirementIds((prev) => prev.filter((id) => id !== targetId));
+      setRemoveRequirementModal(null);
+      setRowActionNotice('Requirement removed from this application dashboard scope.');
+      await loadRequirementScope();
+      const refreshedSteps = await Promise.allSettled(
+        [1, 2, 3, 4, 5, 6, 7, 8, 9].map((stepNum) => api.getApplicationDashboardStep(selectedApp.id, stepNum))
+      );
+      const updates = {};
+      refreshedSteps.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          updates[`dashboardStep${index + 1}`] = result.value;
+        }
+      });
+      if (Object.keys(updates).length > 0) {
+        setDetailCache((prev) => ({ ...prev, ...updates }));
+      }
+    } catch (e) {
+      setRowActionError(e.message || 'Failed to remove requirement from governance scope.');
+    } finally {
+      setRemovingRequirement(false);
+    }
+  }
+
   const loadStepDetail = useCallback(async (stepNum) => {
     setActiveStep(stepNum);
     setStepDetailError('');
@@ -1724,15 +2743,34 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
 
     setLoadingStepDetail(true);
     try {
+      if (!interpretationRequirements.length) {
+        await loadRequirementScope();
+      }
+      const markerIds = selectedApp?.id ? loadNewRequirementMarkers(selectedApp.id) : new Set();
+      if (selectedApp?.id) {
+        setNewRequirementIds(markerIds);
+      }
+      const applyDashboardStep = (stepValue, dashboardStep) => {
+        setDetailCache((prev) => ({ ...prev, [`dashboardStep${stepValue}`]: dashboardStep }));
+        if (selectedApp?.id && markerIds.size > 0) {
+          const seenIds = (Array.isArray(dashboardStep?.rows) ? dashboardStep.rows : [])
+            .map((row) => String(row?.requirement_id || '').trim())
+            .filter((id) => id && markerIds.has(id));
+          if (seenIds.length > 0) {
+            consumeNewRequirementMarkers(selectedApp.id, seenIds);
+          }
+        }
+      };
+
       if (stepNum === 1) {
         const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 1);
-        setDetailCache((prev) => ({ ...prev, dashboardStep1: dashboardStep }));
+        applyDashboardStep(1, dashboardStep);
       } else if (stepNum === 2) {
         const failed = [];
         await loadRequirementScope();
         try {
           const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 2);
-          setDetailCache((prev) => ({ ...prev, dashboardStep2: dashboardStep }));
+          applyDashboardStep(2, dashboardStep);
         } catch {
           failed.push('dashboard_step_2');
         }
@@ -1765,28 +2803,25 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
         }
       } else if (stepNum === 3) {
         const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 3);
-        setDetailCache((prev) => ({
-          ...prev,
-          dashboardStep3: dashboardStep,
-        }));
+        applyDashboardStep(3, dashboardStep);
       } else if (stepNum === 4) {
         const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 4);
-        setDetailCache((prev) => ({ ...prev, dashboardStep4: dashboardStep }));
+        applyDashboardStep(4, dashboardStep);
       } else if (stepNum === 5) {
         const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 5);
-        setDetailCache((prev) => ({ ...prev, dashboardStep5: dashboardStep }));
+        applyDashboardStep(5, dashboardStep);
       } else if (stepNum === 6) {
         const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 6);
-        setDetailCache((prev) => ({ ...prev, dashboardStep6: dashboardStep }));
+        applyDashboardStep(6, dashboardStep);
       } else if (stepNum === 7) {
         const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 7);
-        setDetailCache((prev) => ({ ...prev, dashboardStep7: dashboardStep }));
+        applyDashboardStep(7, dashboardStep);
       } else if (stepNum === 8) {
         const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 8);
-        setDetailCache((prev) => ({ ...prev, dashboardStep8: dashboardStep }));
+        applyDashboardStep(8, dashboardStep);
       } else if (stepNum === 9) {
         const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, 9);
-        setDetailCache((prev) => ({ ...prev, dashboardStep9: dashboardStep }));
+        applyDashboardStep(9, dashboardStep);
       }
     } catch (e) {
       setStepDetailError(e.message || 'Failed to load step detail');
@@ -1795,6 +2830,64 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     }
   }, [detailCache.benchmarks, detailCache.dashboardStep9, detailCache.dashboardStep8, detailCache.dashboardStep7, detailCache.dashboardStep6, detailCache.dashboardStep5, detailCache.dashboardStep4, detailCache.dashboardStep3, detailCache.dashboardStep2, detailCache.dashboardStep1, detailCache.history, detailCache.recommendations, interpretationRequirements.length, loadRequirementScope, selectedApp?.id]);
 
+  const refreshDashboardStepRows = useCallback(async (stepNum) => {
+    if (!selectedApp?.id) {
+      return;
+    }
+    const safeStep = Number(stepNum);
+    if (!Number.isFinite(safeStep) || safeStep < 1 || safeStep > 9) {
+      return;
+    }
+    const dashboardStep = await api.getApplicationDashboardStep(selectedApp.id, safeStep);
+    setDetailCache((prev) => ({ ...prev, [`dashboardStep${safeStep}`]: dashboardStep }));
+  }, [selectedApp?.id]);
+
+  const setManualKpiValue = useCallback(async (row, nextValue, stepNum = 1) => {
+    if (!selectedApp?.id) {
+      return;
+    }
+    const controlId = String(row?.control_id || '').trim();
+    const metricName = String(row?.metric_name || '').trim();
+    const rowKey = buildDashboardRowKey(row);
+    if (!controlId || !metricName || !rowKey) {
+      setRowActionError('Manual KPI update failed because row identifiers are missing.');
+      return;
+    }
+
+    const payload = {
+      control_id: controlId,
+      metric_name: metricName,
+      value: nextValue,
+      set_by: selectedApp?.owner_email || 'application_owner',
+    };
+
+    const requirementId = String(row?.requirement_id || '').trim();
+    if (isUuidLike(requirementId)) {
+      payload.requirement_id = requirementId;
+    }
+
+    setRowActionError('');
+    setRowActionNotice('');
+    setManualKpiSavingRowKeys((prev) => {
+      const next = new Set(prev);
+      next.add(rowKey);
+      return next;
+    });
+
+    try {
+      await api.setApplicationManualKpiValue(selectedApp.id, payload);
+      await refreshDashboardStepRows(stepNum);
+      setRowActionNotice(nextValue >= 100 ? 'Manual KPI marked Completed.' : 'Manual KPI marked Pending.');
+    } catch (e) {
+      setRowActionError(e.message || 'Failed to update manual KPI value.');
+    } finally {
+      setManualKpiSavingRowKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(rowKey);
+        return next;
+      });
+    }
+  }, [refreshDashboardStepRows, selectedApp?.id, selectedApp?.owner_email]);
   useEffect(() => {
     if (!requestedStep?.stepNum) {
       return;
@@ -1953,12 +3046,12 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     return STEP_DEFS.map((step) => {
       if (step.num === 1) {
         if (selectedApp) {
-          const oversightRows = buildCorporateOversightRows(
+          const oversightRows = filterVisibleRows(buildCorporateOversightRows(
             selectedApp,
             snapshot,
             detailCache.dashboardStep1?.summary,
             detailCache.dashboardStep1?.rows
-          );
+          ));
           const fail = oversightRows.filter((row) => row.result === 'FAIL').length;
           return {
             ...step,
@@ -1971,8 +3064,9 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       if (step.num === 2) {
         const scoped = scopedRequirementIds.length;
         if (detailCache.dashboardStep2) {
-          const total = detailCache.dashboardStep2.row_count || 0;
-          const fail = (detailCache.dashboardStep2.rows || []).filter((r) => r.result === 'FAIL').length;
+          const visibleRows = filterVisibleRows(detailCache.dashboardStep2.rows || []);
+          const total = visibleRows.length;
+          const fail = visibleRows.filter((r) => r.result === 'FAIL').length;
           return {
             ...step,
             status: total > 0 ? 'complete' : 'attention',
@@ -1989,8 +3083,9 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       }
       if (step.num === 3) {
         if (detailCache.dashboardStep3) {
-          const total = detailCache.dashboardStep3.row_count || 0;
-          const fail = (detailCache.dashboardStep3.rows || []).filter((r) => r.result === 'FAIL').length;
+          const visibleRows = filterVisibleRows(detailCache.dashboardStep3.rows || []);
+          const total = visibleRows.length;
+          const fail = visibleRows.filter((r) => r.result === 'FAIL').length;
           return {
             ...step,
             status: total > 0 ? 'complete' : 'attention',
@@ -2005,8 +3100,9 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       }
       if (step.num === 4) {
         if (detailCache.dashboardStep4) {
-          const total = detailCache.dashboardStep4.row_count || 0;
-          const pass = (detailCache.dashboardStep4.rows || []).filter((r) => r.result === 'PASS').length;
+          const visibleRows = filterVisibleRows(detailCache.dashboardStep4.rows || []);
+          const total = visibleRows.length;
+          const pass = visibleRows.filter((r) => r.result === 'PASS').length;
           return {
             ...step,
             status: total > 0 ? 'complete' : 'attention',
@@ -2021,8 +3117,9 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       }
       if (step.num === 5) {
         if (detailCache.dashboardStep5) {
-          const total = detailCache.dashboardStep5.row_count || 0;
-          const fail = (detailCache.dashboardStep5.rows || []).filter((r) => r.result === 'FAIL').length;
+          const visibleRows = filterVisibleRows(detailCache.dashboardStep5.rows || []);
+          const total = visibleRows.length;
+          const fail = visibleRows.filter((r) => r.result === 'FAIL').length;
           return {
             ...step,
             status: total > 0 ? 'complete' : 'attention',
@@ -2037,8 +3134,9 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       }
       if (step.num === 6) {
         if (detailCache.dashboardStep6) {
-          const total = detailCache.dashboardStep6.row_count || 0;
-          const fail = (detailCache.dashboardStep6.rows || []).filter((r) => r.result === 'FAIL').length;
+          const visibleRows = filterVisibleRows(detailCache.dashboardStep6.rows || []);
+          const total = visibleRows.length;
+          const fail = visibleRows.filter((r) => r.result === 'FAIL').length;
           return {
             ...step,
             status: total > 0 ? 'complete' : 'attention',
@@ -2053,8 +3151,9 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       }
       if (step.num === 7) {
         if (detailCache.dashboardStep7) {
-          const total = detailCache.dashboardStep7.row_count || 0;
-          const fail = (detailCache.dashboardStep7.rows || []).filter((r) => r.result === 'FAIL').length;
+          const visibleRows = filterVisibleRows(detailCache.dashboardStep7.rows || []);
+          const total = visibleRows.length;
+          const fail = visibleRows.filter((r) => r.result === 'FAIL').length;
           return {
             ...step,
             status: total > 0 ? 'complete' : 'attention',
@@ -2069,8 +3168,9 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       }
       if (step.num === 8) {
         if (detailCache.dashboardStep8) {
-          const total = detailCache.dashboardStep8.row_count || 0;
-          const fail = (detailCache.dashboardStep8.rows || []).filter((r) => r.result === 'FAIL').length;
+          const visibleRows = filterVisibleRows(detailCache.dashboardStep8.rows || []);
+          const total = visibleRows.length;
+          const fail = visibleRows.filter((r) => r.result === 'FAIL').length;
           return {
             ...step,
             status: total > 0 ? 'complete' : 'attention',
@@ -2085,8 +3185,9 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       }
       if (step.num === 9) {
         if (detailCache.dashboardStep9) {
-          const total = detailCache.dashboardStep9.row_count || 0;
-          const fail = (detailCache.dashboardStep9.rows || []).filter((r) => r.result === 'FAIL').length;
+          const visibleRows = filterVisibleRows(detailCache.dashboardStep9.rows || []);
+          const total = visibleRows.length;
+          const fail = visibleRows.filter((r) => r.result === 'FAIL').length;
           return {
             ...step,
             status: total > 0 ? 'complete' : 'attention',
@@ -2101,22 +3202,22 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       }
       return { ...step, status: 'pending', note: 'Panel wiring next increment' };
     });
-  }, [detailCache.benchmarks, detailCache.dashboardStep9, detailCache.dashboardStep8, detailCache.dashboardStep7, detailCache.dashboardStep6, detailCache.dashboardStep5, detailCache.dashboardStep4, detailCache.dashboardStep3, detailCache.dashboardStep2, detailCache.dashboardStep1, detailCache.dashboardStep1?.rows, detailCache.history, detailCache.recommendations, scopedRequirementIds.length, selectedApp, snapshot]);
+  }, [detailCache.benchmarks, detailCache.dashboardStep9, detailCache.dashboardStep8, detailCache.dashboardStep7, detailCache.dashboardStep6, detailCache.dashboardStep5, detailCache.dashboardStep4, detailCache.dashboardStep3, detailCache.dashboardStep2, detailCache.dashboardStep1, detailCache.dashboardStep1?.rows, detailCache.history, detailCache.recommendations, filterVisibleRows, scopedRequirementIds.length, selectedApp, snapshot]);
 
   const totalKpis = useMemo(() => {
     if (!selectedApp) {
       return null;
     }
-    const step1Count = buildCorporateOversightRows(
+    const step1Count = filterVisibleRows(buildCorporateOversightRows(
       selectedApp,
       snapshot,
       detailCache.dashboardStep1?.summary,
       detailCache.dashboardStep1?.rows
-    ).length;
+    )).length;
     const stepCounts = [2, 3, 4, 5, 6, 7, 8, 9]
       .map((stepNum) => {
-        const rowCount = detailCache[`dashboardStep${stepNum}`]?.row_count;
-        return typeof rowCount === 'number' ? rowCount : 0;
+        const rows = detailCache[`dashboardStep${stepNum}`]?.rows || [];
+        return filterVisibleRows(rows).length;
       })
       .reduce((sum, count) => sum + count, 0);
     return step1Count + stepCounts;
@@ -2132,6 +3233,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     detailCache.dashboardStep8?.row_count,
     detailCache.dashboardStep9?.row_count,
     selectedApp,
+    filterVisibleRows,
     snapshot,
   ]);
 
@@ -2140,29 +3242,55 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       return null;
     }
 
-    const step1Rows = buildCorporateOversightRows(
+    const step1Rows = filterVisibleRows(buildCorporateOversightRows(
       selectedApp,
       snapshot,
       detailCache.dashboardStep1?.summary,
       detailCache.dashboardStep1?.rows
-    );
+    ));
+    const step2Rows = filterVisibleRows(detailCache.dashboardStep2?.rows || []);
+    const step3Rows = filterVisibleRows(detailCache.dashboardStep3?.rows || []);
+    const step4Rows = filterVisibleRows(detailCache.dashboardStep4?.rows || []);
+    const step5Rows = filterVisibleRows(detailCache.dashboardStep5?.rows || []);
+    const step6Rows = filterVisibleRows(detailCache.dashboardStep6?.rows || []);
+    const step7Rows = filterVisibleRows(detailCache.dashboardStep7?.rows || []);
+    const step8Rows = filterVisibleRows(detailCache.dashboardStep8?.rows || []);
+    const step9Rows = filterVisibleRows(detailCache.dashboardStep9?.rows || []);
     const scopedRows = [
-      ...(detailCache.dashboardStep2?.rows || []),
-      ...(detailCache.dashboardStep3?.rows || []),
-      ...(detailCache.dashboardStep4?.rows || []),
-      ...(detailCache.dashboardStep5?.rows || []),
-      ...(detailCache.dashboardStep6?.rows || []),
-      ...(detailCache.dashboardStep7?.rows || []),
-      ...(detailCache.dashboardStep8?.rows || []),
-      ...(detailCache.dashboardStep9?.rows || []),
+      ...step2Rows,
+      ...step3Rows,
+      ...step4Rows,
+      ...step5Rows,
+      ...step6Rows,
+      ...step7Rows,
+      ...step8Rows,
+      ...step9Rows,
     ];
     const allRows = [...step1Rows, ...scopedRows];
 
-    const evaluated = allRows.filter((row) => row.result !== 'INSUFFICIENT_DATA').length;
-    const passCount = allRows.filter((row) => row.result === 'PASS').length;
-    const failCount = allRows.filter((row) => row.result === 'FAIL').length;
-    const noDataCount = allRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length;
+    const evaluated = allRows.filter((row) => {
+      const status = row.display_result || row.result;
+      return status === 'PASS' || status === 'FAIL';
+    }).length;
+    const passCount = allRows.filter((row) => (row.display_result || row.result) === 'PASS').length;
+    const failCount = allRows.filter((row) => (row.display_result || row.result) === 'FAIL').length;
+    const noDataCount = allRows.filter((row) => (row.display_result || row.result) === 'INSUFFICIENT_DATA').length;
     const overallPassRate = evaluated > 0 ? (passCount / evaluated) : null;
+    const categoryCompliancePct = {
+      1: computeCategoryCompliancePct(step1Rows),
+      2: computeCategoryCompliancePct(step2Rows),
+      3: computeCategoryCompliancePct(step3Rows),
+      4: computeCategoryCompliancePct(step4Rows),
+      5: computeCategoryCompliancePct(step5Rows),
+      6: computeCategoryCompliancePct(step6Rows),
+      7: computeCategoryCompliancePct(step7Rows),
+      8: computeCategoryCompliancePct(step8Rows),
+      9: computeCategoryCompliancePct(step9Rows),
+    };
+    const categoryAverageCompliancePct = Math.round(
+      Object.values(categoryCompliancePct).reduce((sum, value) => sum + value, 0) / 9
+    );
+    const derivedRiskTier = deriveRiskTierFromComplianceScore(categoryAverageCompliancePct);
 
     return {
       overall_pass_rate: overallPassRate,
@@ -2172,8 +3300,11 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       no_data_count: noDataCount,
       step1_fail_count: step1Rows.filter((row) => row.result === 'FAIL').length,
       step1_total: step1Rows.length,
-      step2_total: detailCache.dashboardStep2?.row_count ?? 0,
+      step2_total: step2Rows.length,
       step2_pass_rate: toRatio(snapshot?.compliance?.pass_rate),
+      category_compliance_pct: categoryCompliancePct,
+      combined_category_avg_pct: categoryAverageCompliancePct,
+      derived_risk_tier: derivedRiskTier,
     };
   }, [
     detailCache.dashboardStep1?.summary,
@@ -2187,6 +3318,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
     detailCache.dashboardStep7?.rows,
     detailCache.dashboardStep8?.rows,
     detailCache.dashboardStep9?.rows,
+    filterVisibleRows,
     selectedApp,
     snapshot,
   ]);
@@ -2204,175 +3336,64 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
       selectedAppId: selectedApp?.id || null,
       totalKpis,
       complianceSummary,
+      activeControlByCategory: Array.isArray(systemOverview?.activeControlByCategory)
+        ? systemOverview.activeControlByCategory
+        : [],
+      systemSnapshot: {
+        connectedApps: Number(systemOverview?.connectedApps || 0),
+        enterpriseRequirements: Number(systemOverview?.totalBaselineRequirements || 0),
+        policyTypes: Array.isArray(systemOverview?.policyTypes) ? systemOverview.policyTypes : [],
+      },
+      recentRequirementTicker: Array.isArray(systemOverview?.recentRequirementTicker)
+        ? systemOverview.recentRequirementTicker
+        : [],
     });
-  }, [activeStep, complianceSummary, error, loading, onDashboardUiChange, selectedApp?.id, snapshot, stepRows, totalKpis]);
+  }, [
+    activeStep,
+    complianceSummary,
+    error,
+    loading,
+    onDashboardUiChange,
+    selectedApp?.id,
+    snapshot,
+    stepRows,
+    totalKpis,
+    systemOverview?.activeControlByCategory,
+    systemOverview?.connectedApps,
+    systemOverview?.totalBaselineRequirements,
+    systemOverview?.policyTypes,
+    systemOverview?.recentRequirementTicker,
+  ]);
 
-  if (!selectedApp) {
-    const riskComplianceDomainTarget = 5;
-    const telemetryState = String(systemOverview.telemetryStatus || '').trim().toLowerCase();
-    const telemetryHealthy = ['healthy', 'ok', 'up', 'running'].includes(telemetryState);
+  if (!selectedApp && mode !== 'home') {
+    return (
+      <div className="card" style={{ padding: '1rem 1.25rem' }}>
+        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          No connected application selected. Use the Connected App selector in the Governance sidebar.
+        </p>
+      </div>
+    );
+  }
 
+  if (mode === 'home' || !selectedApp) {
     return (
       <div className="system-frontpage">
-        <div className="card system-frontpage-hero">
-          <p className="system-frontpage-title">
-            No application selected
-          </p>
-          <p className="system-frontpage-subtitle">
-            Select a connected application from the sidebar to view its governance pipeline.
-          </p>
-          {overviewLoading && (
-            <p className="system-frontpage-note">Loading system-wide governance overview...</p>
-          )}
-          {overviewError && (
-            <div className="alert alert-warning" style={{ marginTop: '0.7rem' }}>
-              {overviewError}
-            </div>
-          )}
-          <div className="system-frontpage-hero-meta">
-            <span className={`system-frontpage-pill ${telemetryHealthy ? 'is-good' : 'is-warning'}`}>
-              Telemetry: {systemOverview.telemetryStatus || 'N/A'}
-            </span>
-            <span className="system-frontpage-pill">
-              Peer-ready metrics: {systemOverview.peerBenchmarkedMetrics}/{systemOverview.distinctMeasureMetrics}
-            </span>
-            <span className="system-frontpage-pill">
-              Interpretation records: {systemOverview.totalInterpretations}
-            </span>
+        {overviewLoading && (
+          <p className="system-frontpage-note">Loading system-wide governance overview...</p>
+        )}
+        {overviewError && (
+          <div className="alert alert-warning" style={{ marginTop: '0.2rem' }}>
+            {overviewError}
+          </div>
+        )}
+        <div className="card system-frontpage-panel" style={{ minHeight: '200px', display: 'grid', placeItems: 'center' }}>
+          <div className="system-frontpage-muted">
+            Home workspace ready for main dashboard content.
           </div>
         </div>
 
-        <div className="system-frontpage-tiles system-frontpage-tiles-compact">
-          <div className="system-frontpage-tile">
-            <span className="system-frontpage-tile-label">Connected Apps</span>
-            <span className="system-frontpage-tile-value">{systemOverview.connectedApps}</span>
-          </div>
-          <div className="system-frontpage-tile">
-            <span className="system-frontpage-tile-label">Distinct Rules</span>
-            <span className="system-frontpage-tile-value">{systemOverview.distinctRules}</span>
-          </div>
-          <div className="system-frontpage-tile">
-            <span className="system-frontpage-tile-label">Distinct Controls</span>
-            <span className="system-frontpage-tile-value">{systemOverview.distinctControls}</span>
-          </div>
-          <div className="system-frontpage-tile">
-            <span className="system-frontpage-tile-label">Measure Definitions</span>
-            <span className="system-frontpage-tile-value">{systemOverview.totalMeasureDefinitions}</span>
-          </div>
-          <div className="system-frontpage-tile">
-            <span className="system-frontpage-tile-label">Regulations</span>
-            <span className="system-frontpage-tile-value">{systemOverview.totalRegulations}</span>
-          </div>
-          <div className="system-frontpage-tile">
-            <span className="system-frontpage-tile-label">Jurisdictions</span>
-            <span className="system-frontpage-tile-value">{systemOverview.totalJurisdictions}</span>
-          </div>
-        </div>
+        {renderRequirementDetailModal()}
 
-        <div className="system-frontpage-cockpit-grid">
-          <div className="card system-frontpage-panel system-frontpage-cockpit-card">
-            <div className="system-frontpage-panel-title">Global Coverage</div>
-            <CoverageTrack
-              label="Rules mapped to controls"
-              value={systemOverview.rulesWithControls}
-              total={systemOverview.distinctRules}
-              tone="blue"
-            />
-            <CoverageTrack
-              label="Rules with measurable KPIs"
-              value={systemOverview.rulesWithMeasures}
-              total={systemOverview.distinctRules}
-              tone="teal"
-            />
-            <CoverageTrack
-              label="Controls with measure mappings"
-              value={systemOverview.controlsWithMeasures}
-              total={systemOverview.distinctControls}
-              tone="amber"
-            />
-            <CoverageTrack
-              label="Metrics with peer benchmark data"
-              value={systemOverview.peerBenchmarkedMetrics}
-              total={systemOverview.distinctMeasureMetrics}
-              tone="rose"
-            />
-          </div>
-
-          <div className="card system-frontpage-panel system-frontpage-cockpit-card">
-            <div className="system-frontpage-panel-title">Risk & Compliance Coverage</div>
-            <CoverageTrack
-              label="R&C controls measurable"
-              value={systemOverview.riskComplianceMeasurableControls}
-              total={systemOverview.riskComplianceControls}
-              tone="amber"
-            />
-            <CoverageTrack
-              label="R&C governance domains represented"
-              value={systemOverview.riskComplianceDomainsPresent}
-              total={riskComplianceDomainTarget}
-              tone="teal"
-            />
-            <CoverageTrack
-              label="Interpreted rules in catalog"
-              value={systemOverview.totalInterpretations}
-              total={systemOverview.rulesWithControls}
-              tone="blue"
-            />
-            <CoverageTrack
-              label="Industry + peer benchmark readiness"
-              value={systemOverview.peerBenchmarkedMetrics}
-              total={systemOverview.distinctMeasureMetrics}
-              tone="rose"
-            />
-            <div className="system-frontpage-kicker-row">
-              <span className="system-frontpage-kicker">
-                Governance Categories: {systemOverview.distinctControlDomains}
-              </span>
-              <span className="system-frontpage-kicker">
-                Rule-Control Links: {systemOverview.totalRuleControlLinks}
-              </span>
-              <span className="system-frontpage-kicker">
-                Industry Taxonomy: {systemOverview.totalIndustryCategories}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="system-frontpage-grid">
-          <div className="card system-frontpage-panel">
-            <div className="system-frontpage-panel-title">Regulation Universe</div>
-            <div className="system-frontpage-chip-list">
-              {systemOverview.regulations.length ? (
-                systemOverview.regulations.map((name) => (
-                  <span key={name} className="system-frontpage-chip">{name}</span>
-                ))
-              ) : (
-                <span className="system-frontpage-muted">No regulations loaded yet.</span>
-              )}
-            </div>
-            <div className="system-frontpage-panel-title" style={{ marginTop: '0.75rem' }}>Top Jurisdictions</div>
-            <div className="system-frontpage-jurisdictions">
-              {systemOverview.topJurisdictions.length ? (
-                systemOverview.topJurisdictions.map((item) => (
-                  <span key={`jur-${item.name}`} className="system-frontpage-jurisdiction-item">
-                    <span>{item.name}</span>
-                    <strong>{item.count}</strong>
-                  </span>
-                ))
-              ) : (
-                <span className="system-frontpage-muted">No jurisdiction data loaded yet.</span>
-              )}
-            </div>
-          </div>
-
-          <div className="card system-frontpage-panel">
-            <div className="system-frontpage-panel-title">Regulatory Geography</div>
-            <p className="system-frontpage-muted" style={{ marginBottom: '0.55rem' }}>
-              Regional distribution of jurisdiction references across the governance catalog.
-            </p>
-            <SystemGeoMap regionCounts={systemOverview.regionCounts} />
-          </div>
-        </div>
       </div>
     );
   }
@@ -2390,24 +3411,27 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
 
         {activeStep && (
           <div ref={detailSectionRef} style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.25rem' }}>
-              <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, marginBottom: '0.5rem' }}>
-                {activeStep === 3
-                  ? 'Step 3 Detail: Technical Architecture'
-                  : activeStep === 4
-                    ? 'Step 4 Detail: Data Readiness Evidence'
-                    : activeStep === 1
-                    ? 'Step 1 Detail: Corporate Oversight'
-                    : activeStep === 2
-                ? 'Step 2 Detail: Risk & Compliance'
-                      : activeStep === 5
-                        ? 'Step 5 Detail: Data Integration'
-                        : activeStep === 6
-                          ? 'Step 6 Detail: Security'
-                  : activeStep === 7
-                    ? 'Step 7 Detail: Infrastructure'
-                    : activeStep === 8
-                      ? 'Step 8 Detail: Solution Design'
-                      : 'Step 9 Detail: System Performance'}
+            <div className="governance-breadcrumb" aria-label="Governance category flow">
+              <div className="governance-mini-flow" role="navigation" aria-label="Governance category sequence">
+                {STEP_DEFS.map((step, idx) => (
+                  <div className="governance-mini-segment" key={`gov-breadcrumb-${step.num}`}>
+                    {idx > 0 ? <span className="governance-mini-link" /> : <span className="governance-mini-link is-hidden" />}
+                    <button
+                      type="button"
+                      onClick={() => loadStepDetail(step.num)}
+                      className={`governance-mini-node${activeStep === step.num ? ' active' : ''}`}
+                      title={`${step.num}. ${step.label}`}
+                      aria-current={activeStep === step.num ? 'step' : undefined}
+                      aria-label={`Go to Step ${step.num}: ${step.label}`}
+                    >
+                      {step.num}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="governance-mini-caption">
+                Step {activeStep}: {STEP_DEFS.find((step) => step.num === activeStep)?.label || 'Governance'}
+              </div>
             </div>
 
             {loadingStepDetail && (
@@ -2421,6 +3445,17 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                 {stepDetailError}
               </div>
             )}
+
+            {rowActionNotice ? (
+              <div className="alert alert-success" style={{ marginBottom: 0 }}>
+                {rowActionNotice}
+              </div>
+            ) : null}
+            {rowActionError ? (
+              <div className="alert alert-danger" style={{ marginBottom: 0 }}>
+                {rowActionError}
+              </div>
+            ) : null}
 
             {!loadingStepDetail && !stepDetailError && activeStep !== 1 && (
               <StepBasicPanel
@@ -2436,12 +3471,12 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const corporateRows = buildCorporateOversightRows(
+                    const corporateRows = filterVisibleRows(buildCorporateOversightRows(
                       selectedApp,
                       snapshot,
                       detailCache.dashboardStep1?.summary,
                       detailCache.dashboardStep1?.rows
-                    );
+                    ));
                     const prioritizedRows = [...corporateRows].sort((a, b) => {
                       const aHasValue = typeof a?.value === 'number' && !Number.isNaN(a.value);
                       const bHasValue = typeof b?.value === 'number' && !Number.isNaN(b.value);
@@ -2450,37 +3485,97 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                       }
                       return 0;
                     });
-                    const visibleRows = showAllCorporate ? prioritizedRows : prioritizedRows.slice(0, 5);
+                    const { baselineRows, applicationSpecificRows: appSpecificRows } = splitRowsByRequirementType(prioritizedRows);
+                    const visibleRows = corporateRequirementListView === 'application_specific'
+                      ? appSpecificRows
+                      : baselineRows;
+                    const summarizeStep1Status = (row) => {
+                      const status = String(row?.display_result || row?.result || '').toUpperCase();
+                      const isManual = status === 'MANUAL' || Boolean(row?.is_manual);
+                      if (isManual) {
+                        return typeof row?.value === 'number' && row.value >= 100 ? 'PASS' : 'FAIL';
+                      }
+                      if (status === 'PASS' || status === 'FAIL') {
+                        return status;
+                      }
+                      return 'INSUFFICIENT_DATA';
+                    };
+                    const step1Counts = visibleRows.reduce((acc, row) => {
+                      const normalized = summarizeStep1Status(row);
+                      if (normalized === 'PASS') acc.pass += 1;
+                      else if (normalized === 'FAIL') acc.fail += 1;
+                      else acc.noData += 1;
+                      return acc;
+                    }, { pass: 0, fail: 0, noData: 0 });
+                    const categoryTotal = corporateRows.length;
+                    const categoryCompleted = corporateRows.filter((row) => (
+                      typeof row?.value === 'number' && !Number.isNaN(row.value) && row.value > 0
+                    )).length;
+                    const categoryCompliance = categoryTotal > 0
+                      ? Math.round((categoryCompleted / categoryTotal) * 100)
+                      : 0;
                     return (
                       <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements - Corporate Oversight
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span className="badge badge-unblue">
+                              Compliance Score: {categoryCompliance}%
+                            </span>
+                            <span
+                              title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                border: '1px solid var(--border)',
+                                fontSize: '0.66rem',
+                                fontWeight: 700,
+                                color: 'var(--text-secondary)',
+                                background: 'var(--surface-2)',
+                                flexShrink: 0,
+                                cursor: 'help',
+                              }}
+                            >
+                              i
+                            </span>
                           </div>
-                          {corporateRows.length > 5 && (
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllCorporate((prev) => !prev)}
+                              onClick={() => setCorporateRequirementListView('baseline')}
+                              style={corporateRequirementListView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllCorporate ? 'Show Top 5' : `Show All (${corporateRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setCorporateRequirementListView('application_specific')}
+                              style={corporateRequirementListView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({appSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
                           <span className="badge badge-grey">Total: {corporateRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {corporateRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {step1Counts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {corporateRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {step1Counts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {corporateRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {step1Counts.pass}
                           </span>
                         </div>
 
@@ -2489,6 +3584,10 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row, idx) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep1ValueSourceLegend(row);
+                              const isManualRow = (row?.display_result || row?.result) === 'MANUAL' || Boolean(row?.is_manual);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = typeof row?.value === 'number' && row.value >= 100 ? 'completed' : 'pending';
                               const rowStatusClass = row.result === 'PASS'
                                 ? 'badge-green'
                                 : row.result === 'FAIL'
@@ -2506,19 +3605,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, corporateRequirementListView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -2536,9 +3623,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, corporateRequirementListView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, 1)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -2597,7 +3701,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const mandatoryRows = detailCache.dashboardStep2?.rows || [];
+                    const mandatoryRows = filterVisibleRows(detailCache.dashboardStep2?.rows || []);
                     const prioritizedRows = [...mandatoryRows].sort((a, b) => {
                       const aHasValue = typeof a?.value === 'number' && !Number.isNaN(a.value);
                       const bHasValue = typeof b?.value === 'number' && !Number.isNaN(b.value);
@@ -2606,25 +3710,59 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                       }
                       return 0;
                     });
-                    const visibleRows = showAllMandatory ? prioritizedRows : prioritizedRows.slice(0, 5);
+                    const { baselineRows, applicationSpecificRows } = splitRowsByRequirementType(prioritizedRows);
+                    const listView = stepRequirementListView[2] || 'baseline';
+                    const visibleRows = listView === 'application_specific' ? applicationSpecificRows : baselineRows;
+                    const stepStatusCounts = computeGovernanceStatusCounts(visibleRows);
+                    const categoryCompliance = computeCategoryCompliancePct(baselineRows, applicationSpecificRows);
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements
-                          </div>
-                          {mandatoryRows.length > 5 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllMandatory((prev) => !prev)}
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 2: 'baseline' }))}
+                              style={listView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllMandatory ? 'Show Top 5' : `Show All (${mandatoryRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 2: 'application_specific' }))}
+                              style={listView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({applicationSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
+                          <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
+                          <span
+                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              background: 'var(--surface-2)',
+                              flexShrink: 0,
+                              cursor: 'help',
+                            }}
+                          >
+                            i
+                          </span>
                         </div>
                         <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.45rem' }}>
                           <span className="badge badge-grey">
@@ -2657,13 +3795,13 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                           <span className="badge badge-grey">Total: {mandatoryRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {mandatoryRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {stepStatusCounts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {mandatoryRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {stepStatusCounts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {mandatoryRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {stepStatusCounts.pass}
                           </span>
                         </div>
 
@@ -2672,9 +3810,14 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep2ValueSourceLegend(row);
-                              const rowStatusClass = row.result === 'PASS'
+                              const isManualRow = isManualGovernanceRow(row);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = getManualGovernanceState(row);
+                              const normalizedRowStatus = summarizeGovernanceRowStatus(row);
+                              const rowStatusClass = normalizedRowStatus === 'PASS'
                                 ? 'badge-green'
-                                : row.result === 'FAIL'
+                                : normalizedRowStatus === 'FAIL'
                                   ? 'badge-red'
                                   : 'badge-yellow';
                               return (
@@ -2689,19 +3832,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, listView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -2719,9 +3850,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, listView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, activeStep)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -2780,38 +3928,71 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const technicalRows = detailCache.dashboardStep3?.rows || [];
-                    const visibleRows = showAllTechnical ? technicalRows : technicalRows.slice(0, 5);
+                    const technicalRows = filterVisibleRows(detailCache.dashboardStep3?.rows || []);
+                    const { baselineRows, applicationSpecificRows } = splitRowsByRequirementType(technicalRows);
+                    const listView = stepRequirementListView[3] || 'baseline';
+                    const visibleRows = listView === 'application_specific' ? applicationSpecificRows : baselineRows;
+                    const stepStatusCounts = computeGovernanceStatusCounts(visibleRows);
+                    const categoryCompliance = computeCategoryCompliancePct(baselineRows, applicationSpecificRows);
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements
-                          </div>
-                          {technicalRows.length > 5 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllTechnical((prev) => !prev)}
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 3: 'baseline' }))}
+                              style={listView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllTechnical ? 'Show Top 5' : `Show All (${technicalRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 3: 'application_specific' }))}
+                              style={listView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({applicationSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
+                          <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
+                          <span
+                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              background: 'var(--surface-2)',
+                              flexShrink: 0,
+                              cursor: 'help',
+                            }}
+                          >
+                            i
+                          </span>
+                        </div>                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
                           <span className="badge badge-grey">Total: {technicalRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {technicalRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {stepStatusCounts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {technicalRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {stepStatusCounts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {technicalRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {stepStatusCounts.pass}
                           </span>
                         </div>
 
@@ -2826,9 +4007,14 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep2ValueSourceLegend(row);
-                              const rowStatusClass = row.result === 'PASS'
+                              const isManualRow = isManualGovernanceRow(row);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = getManualGovernanceState(row);
+                              const normalizedRowStatus = summarizeGovernanceRowStatus(row);
+                              const rowStatusClass = normalizedRowStatus === 'PASS'
                                 ? 'badge-green'
-                                : row.result === 'FAIL'
+                                : normalizedRowStatus === 'FAIL'
                                   ? 'badge-red'
                                   : 'badge-yellow';
                               return (
@@ -2843,19 +4029,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, listView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -2873,9 +4047,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, listView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, activeStep)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -2934,38 +4125,71 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const dataReadinessRows = detailCache.dashboardStep4?.rows || [];
-                    const visibleRows = showAllDataReadiness ? dataReadinessRows : dataReadinessRows.slice(0, 5);
+                    const dataReadinessRows = filterVisibleRows(detailCache.dashboardStep4?.rows || []);
+                    const { baselineRows, applicationSpecificRows } = splitRowsByRequirementType(dataReadinessRows);
+                    const listView = stepRequirementListView[4] || 'baseline';
+                    const visibleRows = listView === 'application_specific' ? applicationSpecificRows : baselineRows;
+                    const stepStatusCounts = computeGovernanceStatusCounts(visibleRows);
+                    const categoryCompliance = computeCategoryCompliancePct(baselineRows, applicationSpecificRows);
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements
-                          </div>
-                          {dataReadinessRows.length > 5 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllDataReadiness((prev) => !prev)}
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 4: 'baseline' }))}
+                              style={listView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllDataReadiness ? 'Show Top 5' : `Show All (${dataReadinessRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 4: 'application_specific' }))}
+                              style={listView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({applicationSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
+                          <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
+                          <span
+                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              background: 'var(--surface-2)',
+                              flexShrink: 0,
+                              cursor: 'help',
+                            }}
+                          >
+                            i
+                          </span>
+                        </div>                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
                           <span className="badge badge-grey">Total: {dataReadinessRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {dataReadinessRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {stepStatusCounts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {dataReadinessRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {stepStatusCounts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {dataReadinessRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {stepStatusCounts.pass}
                           </span>
                         </div>
 
@@ -2980,9 +4204,14 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep2ValueSourceLegend(row);
-                              const rowStatusClass = row.result === 'PASS'
+                              const isManualRow = isManualGovernanceRow(row);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = getManualGovernanceState(row);
+                              const normalizedRowStatus = summarizeGovernanceRowStatus(row);
+                              const rowStatusClass = normalizedRowStatus === 'PASS'
                                 ? 'badge-green'
-                                : row.result === 'FAIL'
+                                : normalizedRowStatus === 'FAIL'
                                   ? 'badge-red'
                                   : 'badge-yellow';
                               return (
@@ -2997,19 +4226,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, listView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -3027,9 +4244,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, listView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, activeStep)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -3088,38 +4322,71 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const dataIntegrationRows = detailCache.dashboardStep5?.rows || [];
-                    const visibleRows = showAllDataIntegration ? dataIntegrationRows : dataIntegrationRows.slice(0, 5);
+                    const dataIntegrationRows = filterVisibleRows(detailCache.dashboardStep5?.rows || []);
+                    const { baselineRows, applicationSpecificRows } = splitRowsByRequirementType(dataIntegrationRows);
+                    const listView = stepRequirementListView[5] || 'baseline';
+                    const visibleRows = listView === 'application_specific' ? applicationSpecificRows : baselineRows;
+                    const stepStatusCounts = computeGovernanceStatusCounts(visibleRows);
+                    const categoryCompliance = computeCategoryCompliancePct(baselineRows, applicationSpecificRows);
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements
-                          </div>
-                          {dataIntegrationRows.length > 5 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllDataIntegration((prev) => !prev)}
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 5: 'baseline' }))}
+                              style={listView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllDataIntegration ? 'Show Top 5' : `Show All (${dataIntegrationRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 5: 'application_specific' }))}
+                              style={listView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({applicationSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
+                          <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
+                          <span
+                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              background: 'var(--surface-2)',
+                              flexShrink: 0,
+                              cursor: 'help',
+                            }}
+                          >
+                            i
+                          </span>
+                        </div>                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
                           <span className="badge badge-grey">Total: {dataIntegrationRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {dataIntegrationRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {stepStatusCounts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {dataIntegrationRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {stepStatusCounts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {dataIntegrationRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {stepStatusCounts.pass}
                           </span>
                         </div>
 
@@ -3134,9 +4401,14 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep2ValueSourceLegend(row);
-                              const rowStatusClass = row.result === 'PASS'
+                              const isManualRow = isManualGovernanceRow(row);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = getManualGovernanceState(row);
+                              const normalizedRowStatus = summarizeGovernanceRowStatus(row);
+                              const rowStatusClass = normalizedRowStatus === 'PASS'
                                 ? 'badge-green'
-                                : row.result === 'FAIL'
+                                : normalizedRowStatus === 'FAIL'
                                   ? 'badge-red'
                                   : 'badge-yellow';
                               return (
@@ -3151,19 +4423,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, listView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -3181,9 +4441,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, listView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, activeStep)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -3242,38 +4519,71 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const securityRows = detailCache.dashboardStep6?.rows || [];
-                    const visibleRows = showAllSecurity ? securityRows : securityRows.slice(0, 5);
+                    const securityRows = filterVisibleRows(detailCache.dashboardStep6?.rows || []);
+                    const { baselineRows, applicationSpecificRows } = splitRowsByRequirementType(securityRows);
+                    const listView = stepRequirementListView[6] || 'baseline';
+                    const visibleRows = listView === 'application_specific' ? applicationSpecificRows : baselineRows;
+                    const stepStatusCounts = computeGovernanceStatusCounts(visibleRows);
+                    const categoryCompliance = computeCategoryCompliancePct(baselineRows, applicationSpecificRows);
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements
-                          </div>
-                          {securityRows.length > 5 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllSecurity((prev) => !prev)}
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 6: 'baseline' }))}
+                              style={listView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllSecurity ? 'Show Top 5' : `Show All (${securityRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 6: 'application_specific' }))}
+                              style={listView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({applicationSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
+                          <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
+                          <span
+                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              background: 'var(--surface-2)',
+                              flexShrink: 0,
+                              cursor: 'help',
+                            }}
+                          >
+                            i
+                          </span>
+                        </div>                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
                           <span className="badge badge-grey">Total: {securityRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {securityRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {stepStatusCounts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {securityRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {stepStatusCounts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {securityRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {stepStatusCounts.pass}
                           </span>
                         </div>
 
@@ -3288,9 +4598,14 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep2ValueSourceLegend(row);
-                              const rowStatusClass = row.result === 'PASS'
+                              const isManualRow = isManualGovernanceRow(row);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = getManualGovernanceState(row);
+                              const normalizedRowStatus = summarizeGovernanceRowStatus(row);
+                              const rowStatusClass = normalizedRowStatus === 'PASS'
                                 ? 'badge-green'
-                                : row.result === 'FAIL'
+                                : normalizedRowStatus === 'FAIL'
                                   ? 'badge-red'
                                   : 'badge-yellow';
                               return (
@@ -3305,19 +4620,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, listView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -3335,9 +4638,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, listView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, activeStep)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -3395,38 +4715,71 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const infrastructureRows = detailCache.dashboardStep7?.rows || [];
-                    const visibleRows = showAllInfrastructure ? infrastructureRows : infrastructureRows.slice(0, 5);
+                    const infrastructureRows = filterVisibleRows(detailCache.dashboardStep7?.rows || []);
+                    const { baselineRows, applicationSpecificRows } = splitRowsByRequirementType(infrastructureRows);
+                    const listView = stepRequirementListView[7] || 'baseline';
+                    const visibleRows = listView === 'application_specific' ? applicationSpecificRows : baselineRows;
+                    const stepStatusCounts = computeGovernanceStatusCounts(visibleRows);
+                    const categoryCompliance = computeCategoryCompliancePct(baselineRows, applicationSpecificRows);
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements
-                          </div>
-                          {infrastructureRows.length > 5 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllInfrastructure((prev) => !prev)}
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 7: 'baseline' }))}
+                              style={listView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllInfrastructure ? 'Show Top 5' : `Show All (${infrastructureRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 7: 'application_specific' }))}
+                              style={listView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({applicationSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
+                          <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
+                          <span
+                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              background: 'var(--surface-2)',
+                              flexShrink: 0,
+                              cursor: 'help',
+                            }}
+                          >
+                            i
+                          </span>
+                        </div>                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
                           <span className="badge badge-grey">Total: {infrastructureRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {infrastructureRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {stepStatusCounts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {infrastructureRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {stepStatusCounts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {infrastructureRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {stepStatusCounts.pass}
                           </span>
                         </div>
 
@@ -3441,9 +4794,14 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep2ValueSourceLegend(row);
-                              const rowStatusClass = row.result === 'PASS'
+                              const isManualRow = isManualGovernanceRow(row);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = getManualGovernanceState(row);
+                              const normalizedRowStatus = summarizeGovernanceRowStatus(row);
+                              const rowStatusClass = normalizedRowStatus === 'PASS'
                                 ? 'badge-green'
-                                : row.result === 'FAIL'
+                                : normalizedRowStatus === 'FAIL'
                                   ? 'badge-red'
                                   : 'badge-yellow';
                               return (
@@ -3458,19 +4816,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, listView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -3488,9 +4834,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, listView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, activeStep)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -3549,38 +4912,71 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const solutionDesignRows = detailCache.dashboardStep8?.rows || [];
-                    const visibleRows = showAllSolutionDesign ? solutionDesignRows : solutionDesignRows.slice(0, 5);
+                    const solutionDesignRows = filterVisibleRows(detailCache.dashboardStep8?.rows || []);
+                    const { baselineRows, applicationSpecificRows } = splitRowsByRequirementType(solutionDesignRows);
+                    const listView = stepRequirementListView[8] || 'baseline';
+                    const visibleRows = listView === 'application_specific' ? applicationSpecificRows : baselineRows;
+                    const stepStatusCounts = computeGovernanceStatusCounts(visibleRows);
+                    const categoryCompliance = computeCategoryCompliancePct(baselineRows, applicationSpecificRows);
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements
-                          </div>
-                          {solutionDesignRows.length > 5 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllSolutionDesign((prev) => !prev)}
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 8: 'baseline' }))}
+                              style={listView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllSolutionDesign ? 'Show Top 5' : `Show All (${solutionDesignRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 8: 'application_specific' }))}
+                              style={listView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({applicationSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
+                          <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
+                          <span
+                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              background: 'var(--surface-2)',
+                              flexShrink: 0,
+                              cursor: 'help',
+                            }}
+                          >
+                            i
+                          </span>
+                        </div>                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
                           <span className="badge badge-grey">Total: {solutionDesignRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {solutionDesignRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {stepStatusCounts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {solutionDesignRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {stepStatusCounts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {solutionDesignRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {stepStatusCounts.pass}
                           </span>
                         </div>
 
@@ -3595,9 +4991,14 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep2ValueSourceLegend(row);
-                              const rowStatusClass = row.result === 'PASS'
+                              const isManualRow = isManualGovernanceRow(row);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = getManualGovernanceState(row);
+                              const normalizedRowStatus = summarizeGovernanceRowStatus(row);
+                              const rowStatusClass = normalizedRowStatus === 'PASS'
                                 ? 'badge-green'
-                                : row.result === 'FAIL'
+                                : normalizedRowStatus === 'FAIL'
                                   ? 'badge-red'
                                   : 'badge-yellow';
                               return (
@@ -3612,19 +5013,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, listView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -3642,9 +5031,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, listView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, activeStep)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -3703,38 +5109,71 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
               <div style={{ marginTop: '1rem', display: 'grid', gap: '0.75rem' }}>
                 <div className="card card-flat">
                   {(() => {
-                    const systemPerformanceRows = detailCache.dashboardStep9?.rows || [];
-                    const visibleRows = showAllSystemPerformance ? systemPerformanceRows : systemPerformanceRows.slice(0, 5);
+                    const systemPerformanceRows = filterVisibleRows(detailCache.dashboardStep9?.rows || []);
+                    const { baselineRows, applicationSpecificRows } = splitRowsByRequirementType(systemPerformanceRows);
+                    const listView = stepRequirementListView[9] || 'baseline';
+                    const visibleRows = listView === 'application_specific' ? applicationSpecificRows : baselineRows;
+                    const stepStatusCounts = computeGovernanceStatusCounts(visibleRows);
+                    const categoryCompliance = computeCategoryCompliancePct(baselineRows, applicationSpecificRows);
                     return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                            Mandatory Requirements
-                          </div>
-                          {systemPerformanceRows.length > 5 && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               className="btn btn-outline btn-xs"
-                              onClick={() => setShowAllSystemPerformance((prev) => !prev)}
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 9: 'baseline' }))}
+                              style={listView === 'baseline'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
                             >
-                              {showAllSystemPerformance ? 'Show Top 5' : `Show All (${systemPerformanceRows.length})`}
+                              Secretariat ({baselineRows.length})
                             </button>
-                          )}
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setStepRequirementListView((prev) => ({ ...prev, 9: 'application_specific' }))}
+                              style={listView === 'application_specific'
+                                ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
+                                : undefined}
+                            >
+                              Application Specific ({applicationSpecificRows.length})
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.55rem' }}>
-                          Live application telemetry
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
+                          <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
+                          <span
+                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.66rem',
+                              fontWeight: 700,
+                              color: 'var(--text-secondary)',
+                              background: 'var(--surface-2)',
+                              flexShrink: 0,
+                              cursor: 'help',
+                            }}
+                          >
+                            i
+                          </span>
+                        </div>                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
                           <span className="badge badge-grey">Total: {systemPerformanceRows.length}</span>
                           <span className="badge badge-grey">Showing: {visibleRows.length}</span>
                           <span className="badge badge-red">
-                            FAIL: {systemPerformanceRows.filter((row) => row.result === 'FAIL').length}
+                            FAIL: {stepStatusCounts.fail}
                           </span>
                           <span className="badge badge-yellow">
-                            NO DATA: {systemPerformanceRows.filter((row) => row.result === 'INSUFFICIENT_DATA').length}
+                            NO DATA: {stepStatusCounts.noData}
                           </span>
                           <span className="badge badge-green">
-                            PASS: {systemPerformanceRows.filter((row) => row.result === 'PASS').length}
+                            PASS: {stepStatusCounts.pass}
                           </span>
                         </div>
 
@@ -3749,9 +5188,14 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                             {visibleRows.map((row) => {
                               const metricMeta = getStep2MetricMeta(row.metric_name);
                               const valueSourceLegend = getStep2ValueSourceLegend(row);
-                              const rowStatusClass = row.result === 'PASS'
+                              const isManualRow = isManualGovernanceRow(row);
+                              const rowKey = buildDashboardRowKey(row);
+                              const manualSaving = rowKey ? manualKpiSavingRowKeys.has(rowKey) : false;
+                              const manualState = getManualGovernanceState(row);
+                              const normalizedRowStatus = summarizeGovernanceRowStatus(row);
+                              const rowStatusClass = normalizedRowStatus === 'PASS'
                                 ? 'badge-green'
-                                : row.result === 'FAIL'
+                                : normalizedRowStatus === 'FAIL'
                                   ? 'badge-red'
                                   : 'badge-yellow';
                               return (
@@ -3766,19 +5210,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                     gap: '0.55rem',
                                   }}
                                 >
-                                  <div style={{ display: 'grid', gap: '0.15rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                      <div style={{ fontWeight: 700, fontSize: '0.79rem' }}>
-                                        {row.control_title || 'Control'}
-                                      </div>
-                                      <span className={`badge ${rowStatusClass}`} style={{ width: 'fit-content' }}>
-                                        {row.result || 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                      {row.requirement_title || 'Requirement details are not available for this row.'}
-                                    </div>
-                                  </div>
+                                  {renderRequirementRowHeader(row, rowStatusClass, listView === 'application_specific')}
 
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.55rem' }}>
                                     <div style={{ display: 'grid', gap: '0.2rem' }}>
@@ -3796,9 +5228,26 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                                         Value
                                       </span>
                                       <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                                        {formatStep2MetricValue(row.metric_name, row.value)}
+                                        {isManualRow
+                                          ? (manualState === 'completed' ? 'Completed' : 'Pending')
+                                          : getGovernanceRowValueLabel(row, listView === 'application_specific')}
                                       </span>
-                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start' }}>
+                                      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                        {isManualRow ? (
+                                          <button
+                                            type="button"
+                                            className={`catalog-row-icon-action ${manualState === 'completed' ? 'is-status-active' : 'is-status-inactive'}`}
+                                            onClick={() => setManualKpiValue(row, manualState === 'completed' ? 0 : 100, activeStep)}
+                                            disabled={manualSaving}
+                                            title={manualState === 'completed' ? 'Completed - click to set Pending' : 'Pending - click to set Completed'}
+                                            aria-label={manualState === 'completed' ? 'Set manual KPI to Pending' : 'Set manual KPI to Completed'}
+                                          >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <path d="M5 3v18" />
+                                              <path d="M5 4h11l-2.5 4L16 12H5z" />
+                                            </svg>
+                                          </button>
+                                        ) : null}
                                         <span
                                           title={valueSourceLegend}
                                           style={{
@@ -3852,6 +5301,51 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange }) {
                 </div>
               </div>
             )}
+
+            {renderRequirementDetailModal()}
+
+            {removeRequirementModal ? (
+              <div
+                className="catalog-modal-overlay"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Remove requirement from governance view"
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) closeRemoveRequirementModal();
+                }}
+              >
+                <div className="catalog-modal catalog-animate-enter" style={{ width: 'min(520px, 100%)' }}>
+                  <div className="catalog-modal-header">
+                    <div className="catalog-modal-heading">
+                      <h3>{removeRequirementModal.mode === 'scope' ? 'Remove Requirement' : 'Hide Requirement'}</h3>
+                      <p>{removeRequirementModal.requirementTitle}</p>
+                    </div>
+                  </div>
+                  <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: 0 }}>
+                    <p className="section-copy" style={{ marginBottom: 0 }}>
+                      {removeRequirementModal.mode === 'scope'
+                        ? 'Remove this requirement from the current application dashboard scope?'
+                        : 'Hide this requirement row from the current Governance detail view?'}
+                    </p>
+                    <p className="catalog-modal-helper-text" style={{ marginTop: '0.45rem' }}>
+                      {removeRequirementModal.mode === 'scope'
+                        ? `Control: ${removeRequirementModal.controlTitle}`
+                        : 'This does not delete the requirement from the database.'}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.45rem', marginTop: '0.65rem' }}>
+                    <button type="button" className="btn-secondary" onClick={closeRemoveRequirementModal} disabled={removingRequirement}>
+                      Cancel
+                    </button>
+                    <button type="button" className="btn-primary catalog-action-btn" onClick={confirmRemoveRequirement} disabled={removingRequirement}>
+                      {removingRequirement
+                        ? (removeRequirementModal.mode === 'scope' ? 'Removing...' : 'Hiding...')
+                        : (removeRequirementModal.mode === 'scope' ? 'Remove' : 'Hide')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -3865,12 +5359,18 @@ GovernanceTab.propTypes = {
     token: PropTypes.number.isRequired,
   }),
   onDashboardUiChange: PropTypes.func,
+  mode: PropTypes.oneOf(['home', 'governance']),
 };
 
 GovernanceTab.defaultProps = {
   requestedStep: null,
   onDashboardUiChange: null,
+  mode: 'governance',
 };
+
+
+
+
 
 
 

@@ -34,6 +34,10 @@ class Regulation(Base):
     id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
     title       = Column(String, nullable=False)
     jurisdiction = Column(String)
+    source      = Column(String)
+    description = Column(Text)
+    policy_type = Column(String)
+    policy_status = Column(String)
     source_url  = Column(String)
     effective_date = Column(DateTime)
     created_at  = Column(DateTime, default=datetime.utcnow)
@@ -49,6 +53,7 @@ class Requirement(Base):
     title           = Column(String, nullable=False)
     description     = Column(Text)
     category        = Column(String)
+    risk_statement  = Column(Text)
     # pgvector column added via Alembic in Phase 2.2
     regulation      = relationship("Regulation", back_populates="requirements")
     controls        = relationship("ControlRequirement", back_populates="requirement")
@@ -62,6 +67,11 @@ class Control(Base):
     description = Column(Text)
     domain      = Column(String, nullable=False)
     tier        = Column(SAEnum("FOUNDATION", "COMMON", "SPECIALIZED", name="control_tier"))
+    measurement_mode = Column(
+        SAEnum("system_calculated", "hybrid", "manual", name="measurement_mode"),
+        nullable=False,
+        default="system_calculated",
+    )
     is_foundation = Column(Boolean, default=False)              # auto-applied to every app
     # pgvector column added via Alembic in Phase 2.2
     requirements = relationship("ControlRequirement", back_populates="control")
@@ -245,6 +255,21 @@ class AlignmentWeightConfig(Base):
     set_at             = Column(DateTime, default=datetime.utcnow, nullable=False)
     reason             = Column(Text, nullable=True)
     is_active          = Column(Boolean, nullable=False, default=True)
+
+
+class RiskKpiWeightConfig(Base):
+    """
+    Admin-configurable KPI weights for risk category scoring.
+    Immutable rows - never updated, only inserted.
+    Active config = latest row where is_active=True.
+    """
+    __tablename__ = "risk_kpi_weight_config"
+    id          = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    kpi_weights = Column(JSON, nullable=False)  # {"metric_name": 0.12, ...}; sum must equal 1.0
+    set_by      = Column(String, nullable=False)
+    set_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
+    reason      = Column(Text, nullable=True)
+    is_active   = Column(Boolean, nullable=False, default=True)
 
 
 # ---------------------------------------------------------------------------

@@ -379,6 +379,7 @@ async def ingest(request: Request, db: AsyncSession = Depends(get_db)):
 
         # --- Collect metric values for recalculation + batch-level FinOps derivations ---
         recalc_signals: dict[str, float] = {}
+        ingested_metric_points = 0
         batch_cost_value: float | None = None
         batch_token_value: float | None = None
         batch_latest_collected_at: datetime | None = None
@@ -404,6 +405,7 @@ async def ingest(request: Request, db: AsyncSession = Depends(get_db)):
                 )
                 db.add(reading)
                 stored_count += 1
+                ingested_metric_points += 1
 
                 finops_values = _derive_finops_metrics(name, value, dp_attrs)
                 for finops_metric_name, finops_value in finops_values.items():
@@ -499,15 +501,13 @@ async def ingest(request: Request, db: AsyncSession = Depends(get_db)):
 
         await db.flush()
 
-        # --- Trigger recalculation if we have override_rate (autonomy validation requires it) ---
-        if "override_rate" in recalc_signals:
+        # --- Trigger recalculation for any new telemetry; override rate is optional hint ---
+        if ingested_metric_points > 0:
             try:
                 await recalculation_trigger(
                     app=app,
                     db=db,
-                    otel_error_rate=recalc_signals.get("error_rate", 0.0),
-                    otel_override_rate=recalc_signals["override_rate"],
-                    otel_drift_score=recalc_signals.get("drift_score", 0.0),
+                    otel_override_rate=recalc_signals.get("override_rate"),
                 )
                 recalc_triggered.append(app_id)
             except Exception as e:

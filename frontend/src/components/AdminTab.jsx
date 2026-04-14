@@ -1,6 +1,5 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import PropTypes from 'prop-types';
-import AlignmentWeightsPanel from './AlignmentWeightsPanel.jsx';
 import ApplicationsTab from './ApplicationsTab.jsx';
 import { useApp, ROLES } from '../context/AppContext.jsx';
 
@@ -8,7 +7,6 @@ const DeveloperIntegrationGuide = React.lazy(() => import('./DeveloperIntegratio
 
 const SUBTABS = [
   { id: 'applications', label: 'Applications', minRole: ROLES.DIVISION_ADMIN },
-  { id: 'weights', label: 'Risk Category Settings', minRole: ROLES.SECRETARIAT_ADMIN },
   { id: 'docs', label: 'Technical Docs', minRole: ROLES.DIVISION_ADMIN },
 ];
 
@@ -17,6 +15,7 @@ const ROLE_RANK = {
   [ROLES.EXPERT_CONTRIBUTOR]: 1,
   [ROLES.REVIEWER]: 1,
   [ROLES.DIVISION_ADMIN]: 2,
+  [ROLES.ADMIN]: 2,
   [ROLES.SECRETARIAT_ADMIN]: 3,
 };
 
@@ -53,7 +52,6 @@ export default function AdminTab({ onNavigate }) {
         </div>
         <div style={{ padding: '1.5rem' }}>
           {sub === 'applications' && <ApplicationsTab onNavigate={onNavigate} />}
-          {sub === 'weights'  && <AlignmentWeightsPanel />}
           {sub === 'docs'     && <TechDocsPanel />}
         </div>
       </div>

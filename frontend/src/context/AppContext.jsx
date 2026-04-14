@@ -5,6 +5,7 @@ const AppContext = createContext(null);
 
 // Role hierarchy
 export const ROLES = {
+  ADMIN: 'admin',
   SECRETARIAT_ADMIN: 'secretariat_admin',
   DIVISION_ADMIN: 'division_admin',
   APPLICATION_OWNER: 'application_owner',
@@ -14,6 +15,7 @@ export const ROLES = {
 
 // Hardcoded for Phase 5 — DB-backed in Phase 6
 const ROLE_MAP = {
+  'admin@un.org': ROLES.ADMIN,
   'tristan.gitman@un.org': ROLES.SECRETARIAT_ADMIN,
 };
 
@@ -26,9 +28,12 @@ export function AppProvider({ children }) {
     role: ROLES.SECRETARIAT_ADMIN,
   });
 
-  const role = ROLE_MAP[currentUser.email] || ROLES.APPLICATION_OWNER;
+  const role = ROLE_MAP[currentUser.email] || currentUser.role || ROLES.APPLICATION_OWNER;
 
-  const canAdmin = role === ROLES.SECRETARIAT_ADMIN || role === ROLES.DIVISION_ADMIN;
+  const canAdmin =
+    role === ROLES.SECRETARIAT_ADMIN ||
+    role === ROLES.DIVISION_ADMIN ||
+    role === ROLES.ADMIN;
   const isSecretariatAdmin = role === ROLES.SECRETARIAT_ADMIN;
 
   const selectApp = (app) => {

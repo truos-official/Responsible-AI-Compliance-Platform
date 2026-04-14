@@ -2,6 +2,7 @@
 
 import math
 import os
+import json
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -10,6 +11,7 @@ from uuid import uuid4
 
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, field_validator
 
@@ -132,6 +134,358 @@ async def config() -> dict[str, str]:
         "application_name": GOVERNANCE_APPLICATION_NAME,
         "deployment_environment": DEPLOYMENT_ENVIRONMENT,
     }
+
+
+def _render_demo_ui_html(default_app_id: str, default_return_url: str) -> str:
+    html = """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ODS Demo Agent</title>
+  <style>
+    :root {
+      --bg: #101317;
+      --panel: #171b21;
+      --panel-2: #1f252d;
+      --border: #2a313b;
+      --text: #f5f7fb;
+      --muted: #9aa6b8;
+      --accent: #00a3ff;
+      --accent-2: #8ecfff;
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --err: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Inter", sans-serif;
+      background: radial-gradient(90% 80% at 10% 0%, #1b2230 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .shell {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 1rem;
+      display: grid;
+      gap: 0.9rem;
+    }
+    .card {
+      background: linear-gradient(140deg, var(--panel) 0%, var(--panel-2) 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.85rem;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .title { font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; }
+    .subtitle { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+    .actions { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 0.46rem 0.66rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: var(--text);
+      background: #12161d;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #001322;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.55rem;
+      margin-top: 0.7rem;
+    }
+    .meta-pill {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 0.45rem 0.58rem;
+      background: #141922;
+      display: grid;
+      gap: 0.1rem;
+    }
+    .meta-label { font-size: 0.67rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .meta-value { font-size: 0.78rem; font-weight: 600; }
+    .form-grid { display: grid; gap: 0.55rem; }
+    .label { font-size: 0.72rem; color: var(--muted); }
+    .input, .textarea {
+      width: 100%;
+      background: #10151c;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 0.52rem 0.58rem;
+      font-family: inherit;
+      font-size: 0.82rem;
+    }
+    .textarea { min-height: 120px; resize: vertical; line-height: 1.4; }
+    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .status {
+      font-size: 0.74rem;
+      border-radius: 999px;
+      padding: 0.16rem 0.48rem;
+      border: 1px solid transparent;
+      width: fit-content;
+    }
+    .status.ok { color: var(--ok); border-color: #0f5132; background: #082017; }
+    .status.warn { color: var(--warn); border-color: #78350f; background: #22130a; }
+    .status.err { color: var(--err); border-color: #7f1d1d; background: #240d0d; }
+    .answer {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: #10151c;
+      padding: 0.6rem;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .sources { display: grid; gap: 0.3rem; margin-top: 0.45rem; }
+    .source-link { color: var(--accent-2); text-decoration: none; font-size: 0.78rem; }
+    .source-link:hover { text-decoration: underline; }
+    .feedback-wrap { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.45rem; }
+    .feedback-btn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #121821;
+      color: var(--text);
+      padding: 0.3rem 0.48rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .feedback-btn:hover { border-color: var(--accent); }
+    .muted { color: var(--muted); font-size: 0.74rem; }
+    @media (max-width: 640px) {
+      .shell { padding: 0.7rem; }
+      .title { font-size: 0.92rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="card">
+      <div class="header">
+        <div>
+          <div class="title">ODS Demo Agent</div>
+          <div class="subtitle">Run live prompts, emit telemetry, then switch back to Governance dashboard.</div>
+        </div>
+        <div class="actions">
+          <a id="backToGov" class="btn btn-primary" href="#">Back to Governance</a>
+          <a class="btn" href="/docs" target="_blank" rel="noreferrer">API Docs</a>
+        </div>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-pill">
+          <span class="meta-label">Connected App Context</span>
+          <span id="appIdPill" class="meta-value">-</span>
+        </div>
+        <div class="meta-pill">
+          <span class="meta-label">Telemetry Endpoint</span>
+          <span id="telemetryPill" class="meta-value">/api/v1/telemetry/ingest</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card form-grid">
+      <div>
+        <div class="label">User ID (for active-user and feedback telemetry)</div>
+        <input id="userIdInput" class="input" value="demo.user@un.org" />
+      </div>
+      <div>
+        <div class="label">Prompt</div>
+        <textarea id="promptInput" class="textarea" placeholder="Ask the ODS Demo Agent a question..."></textarea>
+      </div>
+      <div class="row">
+        <button id="sendBtn" class="btn btn-primary" type="button">Send Query</button>
+        <span id="queryStatus" class="status warn">Idle</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content: space-between;">
+        <strong style="font-size:0.82rem;">Response</strong>
+        <span id="responseMeta" class="muted">No response yet</span>
+      </div>
+      <div id="answerBox" class="answer" style="margin-top:0.5rem;">Run a query to generate a response and telemetry.</div>
+      <div id="sourcesBox" class="sources"></div>
+      <div class="feedback-wrap">
+        <button id="thumbUpBtn" class="feedback-btn" type="button" disabled>👍 Thumbs Up</button>
+        <button id="thumbDownBtn" class="feedback-btn" type="button" disabled>👎 Thumbs Down</button>
+        <span id="feedbackMeta" class="muted">Feedback not submitted yet.</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_APP_ID = __DEFAULT_APP_ID__;
+    const DEFAULT_RETURN_URL = __DEFAULT_RETURN_URL__;
+    const params = new URLSearchParams(window.location.search);
+
+    const runtimeAppId = params.get("app_id") || DEFAULT_APP_ID || "unknown";
+    const runtimeReturnUrl = params.get("return_url") || DEFAULT_RETURN_URL || "http://localhost:5173/";
+
+    const appIdPill = document.getElementById("appIdPill");
+    const backToGov = document.getElementById("backToGov");
+    const telemetryPill = document.getElementById("telemetryPill");
+    const userIdInput = document.getElementById("userIdInput");
+    const promptInput = document.getElementById("promptInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const queryStatus = document.getElementById("queryStatus");
+    const responseMeta = document.getElementById("responseMeta");
+    const answerBox = document.getElementById("answerBox");
+    const sourcesBox = document.getElementById("sourcesBox");
+    const thumbUpBtn = document.getElementById("thumbUpBtn");
+    const thumbDownBtn = document.getElementById("thumbDownBtn");
+    const feedbackMeta = document.getElementById("feedbackMeta");
+
+    appIdPill.textContent = runtimeAppId;
+    backToGov.href = runtimeReturnUrl;
+    telemetryPill.textContent = "/api/v1/telemetry/ingest -> Governance app_id: " + runtimeAppId;
+
+    let latestResponseId = null;
+
+    function setStatus(level, text) {
+      queryStatus.className = "status " + level;
+      queryStatus.textContent = text;
+    }
+
+    function setFeedbackEnabled(enabled) {
+      thumbUpBtn.disabled = !enabled;
+      thumbDownBtn.disabled = !enabled;
+    }
+
+    function renderSources(citations) {
+      sourcesBox.innerHTML = "";
+      if (!Array.isArray(citations) || citations.length === 0) {
+        return;
+      }
+      const heading = document.createElement("div");
+      heading.className = "muted";
+      heading.textContent = "Sources";
+      sourcesBox.appendChild(heading);
+      citations.forEach((c) => {
+        const item = document.createElement("a");
+        item.className = "source-link";
+        item.href = c.url;
+        item.target = "_blank";
+        item.rel = "noreferrer";
+        item.textContent = "- " + c.title;
+        sourcesBox.appendChild(item);
+      });
+    }
+
+    async function submitQuery() {
+      const prompt = promptInput.value.trim();
+      const userId = (userIdInput.value || "anonymous").trim() || "anonymous";
+      if (!prompt) {
+        setStatus("warn", "Enter a prompt");
+        return;
+      }
+      setStatus("warn", "Running");
+      sendBtn.disabled = true;
+      setFeedbackEnabled(false);
+      feedbackMeta.textContent = "Feedback not submitted yet.";
+
+      try {
+        const res = await fetch("/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, user_id: userId }),
+        });
+        if (!res.ok) {
+          const detail = await res.text();
+          throw new Error(detail || "Query failed");
+        }
+        const data = await res.json();
+        latestResponseId = data.response_id;
+        answerBox.textContent = data.answer || "";
+        responseMeta.textContent =
+          "Model: " + (data.model || "n/a") +
+          " | Tokens: " + (data.total_tokens ?? "n/a") +
+          " | Cost: $" + (data.estimated_cost_usd ?? "0") +
+          " | Retrieval p95: " + Math.round(data.retrieval_latency_ms || 0) + "ms";
+        renderSources(data.citations || []);
+        setStatus("ok", "Telemetry sent");
+        setFeedbackEnabled(true);
+      } catch (err) {
+        answerBox.textContent = "Error: " + (err?.message || String(err));
+        responseMeta.textContent = "Request failed";
+        setStatus("err", "Failed");
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    async function sendFeedback(feedback) {
+      if (!latestResponseId) {
+        return;
+      }
+      const userId = (userIdInput.value || "anonymous").trim() || "anonymous";
+      try {
+        const res = await fetch("/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            response_id: latestResponseId,
+            feedback,
+            user_id: userId,
+          }),
+        });
+        if (!res.ok) {
+          const detail = await res.text();
+          throw new Error(detail || "Feedback failed");
+        }
+        const data = await res.json();
+        const pct = Math.round((Number(data.feedback_positive_rate || 0)) * 100);
+        feedbackMeta.textContent = "Feedback sent (" + data.feedback + "). Positive rate: " + pct + "% across " + data.total_feedback_count + " feedback events.";
+      } catch (err) {
+        feedbackMeta.textContent = "Feedback error: " + (err?.message || String(err));
+      }
+    }
+
+    sendBtn.addEventListener("click", submitQuery);
+    thumbUpBtn.addEventListener("click", () => sendFeedback("up"));
+    thumbDownBtn.addEventListener("click", () => sendFeedback("down"));
+
+    promptInput.value = "Summarize how responsible AI governance applies to a RAG assistant used by public-sector staff.";
+  </script>
+</body>
+</html>
+"""
+    return (
+        html.replace("__DEFAULT_APP_ID__", json.dumps(default_app_id))
+        .replace("__DEFAULT_RETURN_URL__", json.dumps(default_return_url))
+    )
+
+
+@app.get("/", response_class=HTMLResponse)
+async def demo_console(
+    app_id: str | None = None,
+    return_url: str | None = None,
+) -> HTMLResponse:
+    resolved_app_id = (app_id or GOVERNANCE_APPLICATION_ID or "").strip()
+    default_return_url = return_url
+    if not default_return_url:
+        if resolved_app_id:
+            default_return_url = f"http://localhost:5173/?app_id={resolved_app_id}"
+        else:
+            default_return_url = "http://localhost:5173/"
+    return HTMLResponse(_render_demo_ui_html(resolved_app_id, default_return_url))
 
 
 def _ns_now() -> str:

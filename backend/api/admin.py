@@ -1,11 +1,13 @@
 """
-admin.py — Admin-only configuration endpoints
+admin.py - Admin-only configuration endpoints
 
-GET  /admin/alignment-weights         — current active config + full history
-POST /admin/alignment-weights         — set new weights (admin only, sum must = 1.0)
+Risk category settings:
+  GET  /admin/risk-category-weights
+  POST /admin/risk-category-weights
 
-Weight config is immutable — each POST creates a new row.
-Full history retained for audit. Active config = latest is_active=True row.
+Alignment settings (legacy + still used by alignment engine):
+  GET  /admin/alignment-weights
+  POST /admin/alignment-weights
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from adapters.llm.factory import get_llm_adapter
 from db.models import (
     AlignmentWeightConfig,
+    RiskKpiWeightConfig,
     TierPeerAggregate,
     MetricReading,
     Application,
@@ -34,6 +37,7 @@ from db.models import (
     ControlLifecycleTag,
     ApprovedSystemAttribute,
 )
+from core.tier_engine import RISK_KPI_CATALOG, DEFAULT_RISK_KPI_WEIGHTS
 from db.session import get_db_session as get_db
 
 router = APIRouter(tags=["admin"])
@@ -83,6 +87,57 @@ class AlignmentWeightRequest(BaseModel):
 class AlignmentWeightResponse(BaseModel):
     active:  AlignmentWeightEntry
     history: list[AlignmentWeightEntry]
+
+
+class RiskKpiCatalogItem(BaseModel):
+    metric_name: str
+    label: str
+    governance_category: str
+    operator: str
+    target: float
+    description: str
+
+
+class RiskKpiWeightEntry(BaseModel):
+    id: str
+    kpi_weights: dict[str, float]
+    set_by: str
+    set_at: datetime
+    reason: Optional[str]
+    is_active: bool
+
+
+class RiskKpiWeightRequest(BaseModel):
+    kpi_weights: dict[str, float]
+    set_by: str
+    reason: Optional[str] = None
+
+    @validator("kpi_weights")
+    def weights_must_be_complete_and_sum_to_one(cls, kpi_weights):
+        expected = set(DEFAULT_RISK_KPI_WEIGHTS.keys())
+        provided = set((kpi_weights or {}).keys())
+        missing = sorted(expected - provided)
+        extra = sorted(provided - expected)
+        if missing:
+            raise ValueError(f"Missing KPI weights for: {missing}")
+        if extra:
+            raise ValueError(f"Unknown KPI weights provided: {extra}")
+
+        total = round(sum(float(v) for v in kpi_weights.values()), 6)
+        if abs(total - 1.0) > 0.001:
+            raise ValueError(f"KPI weights must sum to 1.0; received {total}")
+
+        for metric_name, value in kpi_weights.items():
+            f = float(value)
+            if f < 0 or f > 1:
+                raise ValueError(f"KPI weight for {metric_name} must be between 0 and 1")
+        return {k: float(v) for k, v in kpi_weights.items()}
+
+
+class RiskKpiWeightResponse(BaseModel):
+    active: RiskKpiWeightEntry
+    history: list[RiskKpiWeightEntry]
+    kpi_catalog: list[RiskKpiCatalogItem]
 
 
 class TagSuggestion(BaseModel):
@@ -183,6 +238,46 @@ def _to_entry(row: AlignmentWeightConfig) -> AlignmentWeightEntry:
     )
 
 
+def _normalize_kpi_weights(raw_weights: dict[str, Any] | None) -> dict[str, float]:
+    merged: dict[str, float] = {}
+    raw = raw_weights if isinstance(raw_weights, dict) else {}
+    for metric_name, default_value in DEFAULT_RISK_KPI_WEIGHTS.items():
+        try:
+            merged[metric_name] = max(0.0, float(raw.get(metric_name, default_value)))
+        except (TypeError, ValueError):
+            merged[metric_name] = float(default_value)
+
+    total = sum(merged.values())
+    if total <= 0:
+        return dict(DEFAULT_RISK_KPI_WEIGHTS)
+    return {k: round(v / total, 8) for k, v in merged.items()}
+
+
+def _to_risk_kpi_entry(row: RiskKpiWeightConfig) -> RiskKpiWeightEntry:
+    return RiskKpiWeightEntry(
+        id=row.id,
+        kpi_weights=_normalize_kpi_weights(row.kpi_weights),
+        set_by=row.set_by,
+        set_at=row.set_at,
+        reason=row.reason,
+        is_active=row.is_active,
+    )
+
+
+def _risk_kpi_catalog_items() -> list[RiskKpiCatalogItem]:
+    return [
+        RiskKpiCatalogItem(
+            metric_name=item["metric_name"],
+            label=item["label"],
+            governance_category=item["governance_category"],
+            operator=item["operator"],
+            target=float(item["target"]),
+            description=item["description"],
+        )
+        for item in RISK_KPI_CATALOG
+    ]
+
+
 async def get_active_weights(db: AsyncSession) -> AlignmentWeightConfig:
     """Fetch the current active weight config. Used by alignment engine."""
     result = await db.execute(
@@ -198,6 +293,31 @@ async def get_active_weights(db: AsyncSession) -> AlignmentWeightConfig:
             detail="No active alignment weight config found — check DB seeding"
         )
     return config
+
+
+async def get_active_risk_kpi_weight_config(db: AsyncSession) -> RiskKpiWeightConfig:
+    result = await db.execute(
+        select(RiskKpiWeightConfig)
+        .where(RiskKpiWeightConfig.is_active.is_(True))
+        .order_by(RiskKpiWeightConfig.set_at.desc())
+        .limit(1)
+    )
+    config = result.scalar_one_or_none()
+    if config:
+        return config
+
+    bootstrap = RiskKpiWeightConfig(
+        id=str(uuid4()),
+        kpi_weights=dict(DEFAULT_RISK_KPI_WEIGHTS),
+        set_by="system_bootstrap",
+        set_at=datetime.utcnow(),
+        reason="Initial baseline KPI weight configuration.",
+        is_active=True,
+    )
+    db.add(bootstrap)
+    await db.commit()
+    await db.refresh(bootstrap)
+    return bootstrap
 
 
 ALLOWED_LIFECYCLE_TAGS = {
@@ -372,6 +492,49 @@ def _tag_review_state(tag_row: ControlLifecycleTag) -> str:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+@router.get("/admin/risk-category-weights", response_model=RiskKpiWeightResponse)
+async def get_risk_category_weights(db: AsyncSession = Depends(get_db)):
+    active = await get_active_risk_kpi_weight_config(db)
+    history_result = await db.execute(
+        select(RiskKpiWeightConfig).order_by(RiskKpiWeightConfig.set_at.desc())
+    )
+    history = history_result.scalars().all()
+    return RiskKpiWeightResponse(
+        active=_to_risk_kpi_entry(active),
+        history=[_to_risk_kpi_entry(item) for item in history],
+        kpi_catalog=_risk_kpi_catalog_items(),
+    )
+
+
+@router.post(
+    "/admin/risk-category-weights",
+    response_model=RiskKpiWeightEntry,
+    status_code=status.HTTP_201_CREATED,
+)
+async def set_risk_category_weights(
+    body: RiskKpiWeightRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    current = await db.execute(
+        select(RiskKpiWeightConfig).where(RiskKpiWeightConfig.is_active.is_(True))
+    )
+    for row in current.scalars().all():
+        row.is_active = False
+
+    new_config = RiskKpiWeightConfig(
+        id=str(uuid4()),
+        kpi_weights=_normalize_kpi_weights(body.kpi_weights),
+        set_by=body.set_by,
+        set_at=datetime.utcnow(),
+        reason=body.reason,
+        is_active=True,
+    )
+    db.add(new_config)
+    await db.commit()
+    await db.refresh(new_config)
+    return _to_risk_kpi_entry(new_config)
+
 
 @router.get("/admin/alignment-weights", response_model=AlignmentWeightResponse)
 async def get_alignment_weights(db: AsyncSession = Depends(get_db)):

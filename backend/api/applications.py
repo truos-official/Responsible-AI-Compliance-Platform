@@ -17,7 +17,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import (
@@ -70,21 +70,12 @@ class ApplicationUpdateRequest(BaseModel):
     consent_scope:        Optional[str]   = None
 
 
-class TierDimensionBreakdown(BaseModel):
-    deployment_domain:    float
-    decision_type:        float
-    autonomy_level:       float
-    population_breadth:   float
-    affected_populations: float
-    likelihood:           float
-
-
 class TierResponse(BaseModel):
     application_id: str
     current_tier:   str
     raw_score:      float
     floor_rule:     Optional[str]
-    dimensions:     TierDimensionBreakdown
+    dimensions:     dict[str, float]
     calculated_at:  datetime
 
 
@@ -130,6 +121,7 @@ class ApplicationRequirementScopeItem(BaseModel):
     category: Optional[str]
     selected: bool
     is_default: bool = False
+    added_at: Optional[datetime] = None
     linked_controls: list[dict[str, Any]] = Field(default_factory=list)
 
 
@@ -212,6 +204,30 @@ class AppInterpretationResponse(BaseModel):
     set_at: datetime
 
 
+class ManualKpiValueSetRequest(StrictRequestModel):
+    control_id: str
+    metric_name: str
+    value: int = Field(..., description="0 = Pending, 100 = Completed")
+    requirement_id: Optional[str] = None
+    set_by: Optional[str] = None
+
+    @field_validator("value")
+    @classmethod
+    def validate_binary_value(cls, v: int) -> int:
+        if v not in {0, 100}:
+            raise ValueError("value must be 0 (Pending) or 100 (Completed)")
+        return v
+
+
+class ManualKpiValueSetResponse(BaseModel):
+    application_id: str
+    control_id: str
+    metric_name: str
+    requirement_id: Optional[str]
+    value: float
+    state: str
+    collected_at: datetime
+
 class DashboardMeasureRow(BaseModel):
     control_id: str
     control_code: Optional[str]
@@ -219,8 +235,17 @@ class DashboardMeasureRow(BaseModel):
     requirement_id: Optional[str]
     requirement_code: Optional[str]
     requirement_title: Optional[str]
+    requirement_description: Optional[str] = None
+    regulation_title: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    policy_source: Optional[str] = None
+    policy_type: Optional[str] = None
+    policy_status: Optional[str] = None
     metric_name: str
+    metric_definition: Optional[str] = None
     result: str
+    display_result: Optional[str] = None
+    is_manual: bool = False
     value: Optional[float]
     threshold: Optional[dict]
     interpretation_text: str
@@ -264,15 +289,19 @@ METRIC_GROUPS_BY_SYSTEM_TYPE: dict[str, list[str]] = {
 }
 
 METRIC_GROUPS_BY_TIER: dict[str, list[str]] = {
-    "High":       ["risk", "incident"],
-    "Common":     ["risk", "incident"],
+    "Critical": ["risk", "incident", "appeals"],
+    "High": ["risk", "incident"],
+    "Medium": ["risk", "incident"],
+    "Low": [],
+    # Legacy compatibility
+    "Common": ["risk", "incident"],
     "Foundation": [],
 }
 
 
 def _required_metric_groups(app: Application) -> list[str]:
     groups = set(METRIC_GROUPS_BY_SYSTEM_TYPE.get(app.ai_system_type, ["core"]))
-    groups.update(METRIC_GROUPS_BY_TIER.get(app.current_tier or "Foundation", []))
+    groups.update(METRIC_GROUPS_BY_TIER.get(app.current_tier or "Low", []))
     return sorted(groups)
 
 
@@ -317,7 +346,7 @@ def _tier_result_to_response(app_id: str, result: TierResult) -> TierResponse:
         current_tier=result.final_tier.value,
         raw_score=result.raw_score,
         floor_rule=result.floor_rule,
-        dimensions=TierDimensionBreakdown(**result.dimensions),
+        dimensions=result.dimensions,
         calculated_at=result.calculated_at,
     )
 
@@ -335,6 +364,8 @@ STEP_KEY_MAP: dict[int, str] = {
 }
 
 STEP_TAG_MAP: dict[int, set[str]] = {
+    1: {"Corporate Oversight"},
+    2: {"Risk & Compliance"},
     3: {"Technical Architecture"},
     4: {"Data Readiness"},
     5: {"Data Integration"},
@@ -1526,6 +1557,147 @@ def _result_priority(result: str) -> int:
     return 2
 
 
+def _is_uuid_like(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    try:
+        UUID(str(value))
+        return True
+    except Exception:
+        return False
+
+
+def _threshold_formula_text(threshold: Optional[dict]) -> Optional[str]:
+    if not isinstance(threshold, dict):
+        return None
+    formula = threshold.get("formula")
+    if formula is None:
+        return None
+    text = str(formula).strip()
+    return text or None
+
+
+async def _load_metric_context_from_scope(
+    *,
+    app_id: str,
+    metric_names: set[str],
+    db: AsyncSession,
+) -> dict[str, dict[str, Any]]:
+    normalized = {str(name or "").strip() for name in metric_names if str(name or "").strip()}
+    if not normalized:
+        return {}
+
+    rows = await db.execute(
+        select(
+            ControlMetricDefinition.metric_name,
+            Requirement.id.label("requirement_id"),
+            Requirement.code.label("requirement_code"),
+            Requirement.title.label("requirement_title"),
+            Requirement.description.label("requirement_description"),
+            Regulation.title.label("regulation_title"),
+            Regulation.jurisdiction.label("jurisdiction"),
+            Regulation.source.label("policy_source"),
+            Regulation.policy_type.label("policy_type"),
+            Regulation.policy_status.label("policy_status"),
+            Control.id.label("control_id"),
+            Control.code.label("control_code"),
+            Control.title.label("control_title"),
+            MeasureFormula.expression_preview.label("metric_definition"),
+        )
+        .join(Control, Control.id == ControlMetricDefinition.control_id)
+        .join(ControlRequirement, ControlRequirement.control_id == Control.id)
+        .join(Requirement, Requirement.id == ControlRequirement.requirement_id)
+        .join(
+            ApplicationRequirement,
+            and_(
+                ApplicationRequirement.requirement_id == Requirement.id,
+                ApplicationRequirement.application_id == app_id,
+            ),
+        )
+        .join(Regulation, Regulation.id == Requirement.regulation_id)
+        .outerjoin(MeasureFormula, MeasureFormula.control_metric_definition_id == ControlMetricDefinition.id)
+        .where(ControlMetricDefinition.metric_name.in_(normalized))
+        .order_by(ApplicationRequirement.is_default.desc(), Requirement.code, Requirement.title)
+    )
+
+    context_by_metric: dict[str, dict[str, Any]] = {}
+    for row in rows.mappings().all():
+        metric_name = str(row.get("metric_name") or "").strip()
+        if not metric_name or metric_name in context_by_metric:
+            continue
+        context_by_metric[metric_name] = {
+            "requirement_id": str(row.get("requirement_id")) if row.get("requirement_id") else None,
+            "requirement_code": row.get("requirement_code"),
+            "requirement_title": row.get("requirement_title"),
+            "requirement_description": row.get("requirement_description"),
+            "regulation_title": row.get("regulation_title"),
+            "jurisdiction": row.get("jurisdiction"),
+            "policy_source": row.get("policy_source"),
+            "policy_type": row.get("policy_type"),
+            "policy_status": row.get("policy_status"),
+            "control_id": str(row.get("control_id")) if row.get("control_id") else None,
+            "control_code": row.get("control_code"),
+            "control_title": row.get("control_title"),
+            "metric_definition": row.get("metric_definition"),
+        }
+    return context_by_metric
+
+
+def _merge_step_rows(
+    *,
+    app_id: str,
+    scoped_rows: list[DashboardMeasureRow],
+    curated_rows: list[DashboardMeasureRow],
+    metric_context_by_name: dict[str, dict[str, Any]] | None = None,
+) -> list[DashboardMeasureRow]:
+    scoped_metric_names = {str(row.metric_name or "").strip() for row in scoped_rows}
+    merged = list(scoped_rows)
+    metric_context_by_name = metric_context_by_name or {}
+    for row in curated_rows:
+        metric_name = str(row.metric_name or "").strip()
+        if metric_name and metric_name in scoped_metric_names:
+            continue
+        context = metric_context_by_name.get(metric_name)
+        if context is None:
+            # We only show curated rows when they can be validated against
+            # a real DB requirement/control/policy chain for this application.
+            continue
+        updated_row = row.model_copy(
+            update={
+                "control_id": context.get("control_id") or row.control_id,
+                "control_code": context.get("control_code") or row.control_code,
+                "control_title": context.get("control_title") or row.control_title,
+                "requirement_id": context.get("requirement_id") or row.requirement_id,
+                "requirement_code": context.get("requirement_code") or row.requirement_code,
+                "requirement_title": context.get("requirement_title") or row.requirement_title,
+                "requirement_description": context.get("requirement_description") or row.requirement_description,
+                "regulation_title": context.get("regulation_title") or row.regulation_title,
+                "jurisdiction": context.get("jurisdiction") or row.jurisdiction,
+                "policy_source": context.get("policy_source") or row.policy_source,
+                "policy_type": context.get("policy_type") or row.policy_type,
+                "policy_status": context.get("policy_status") or row.policy_status,
+                "metric_definition": (
+                    context.get("metric_definition")
+                    or row.metric_definition
+                    or _threshold_formula_text(row.threshold)
+                ),
+            }
+        )
+        if not _is_uuid_like(updated_row.requirement_id):
+            continue
+        merged.append(updated_row)
+    merged.sort(key=lambda row: (_result_priority(row.display_result or row.result), -row.regulatory_density, row.control_code or ""))
+    return merged
+
+
+def _resolve_display_result(*, result: str, is_manual: bool, value: Optional[float]) -> str:
+    # Manual controls require human attestation; they are shown as MANUAL in UI
+    # even when telemetry values are missing.
+    if is_manual:
+        return "MANUAL"
+    return result
+
+
 def _extract_industry_benchmark(threshold: Optional[dict]) -> Optional[float]:
     if not isinstance(threshold, dict):
         return None
@@ -1645,8 +1817,17 @@ async def _build_curated_dashboard_rows(
                 requirement_id=config.get("requirement_id"),
                 requirement_code=config.get("requirement_code"),
                 requirement_title=config.get("requirement_title"),
+                requirement_description=config.get("requirement_description"),
+                regulation_title=config.get("regulation_title"),
+                jurisdiction=config.get("jurisdiction"),
+                policy_source=config.get("policy_source"),
+                policy_type=config.get("policy_type"),
+                policy_status=config.get("policy_status"),
                 metric_name=metric_name,
+                metric_definition=config.get("metric_definition") or _threshold_formula_text(threshold),
                 result=result,
+                display_result=result,
+                is_manual=False,
                 value=value,
                 threshold=threshold,
                 interpretation_text=_render_measure_interpretation(
@@ -1677,6 +1858,461 @@ async def _build_curated_dashboard_rows(
 
     rows.sort(key=lambda row: (_result_priority(row.result), -row.regulatory_density, row.control_code or ""))
     return rows
+
+
+async def _build_scoped_dashboard_step_response(
+    *,
+    app: Application,
+    app_id: str,
+    step: int,
+    step_key: str,
+    db: AsyncSession,
+) -> DashboardStepResponse:
+    selected_requirements_result = await db.execute(
+        select(
+            ApplicationRequirement.requirement_id,
+            Requirement.category,
+        )
+        .join(Requirement, Requirement.id == ApplicationRequirement.requirement_id)
+        .where(ApplicationRequirement.application_id == app_id)
+    )
+    selected_requirement_rows = selected_requirements_result.all()
+    selected_requirement_ids = [str(row.requirement_id) for row in selected_requirement_rows]
+    if not selected_requirement_ids:
+        return DashboardStepResponse(
+            application_id=app_id,
+            step=step,
+            step_key=step_key,
+            generated_at=datetime.utcnow(),
+            scope_active=False,
+            row_count=0,
+            summary={"message": "No active requirements selected for this application."},
+            rows=[],
+        )
+
+    step_tags = STEP_TAG_MAP.get(step, set())
+    normalized_step_tags = {str(tag or "").strip().lower() for tag in step_tags if str(tag or "").strip()}
+
+    # Strict category routing: each step only uses requirements explicitly assigned
+    # to that governance category.
+    selected_step_requirement_ids = list(selected_requirement_ids)
+    if normalized_step_tags:
+        selected_step_requirement_ids = [
+            str(row.requirement_id)
+            for row in selected_requirement_rows
+            if str(row.category or "").strip().lower() in normalized_step_tags
+        ]
+
+    if not selected_step_requirement_ids:
+        return DashboardStepResponse(
+            application_id=app_id,
+            step=step,
+            step_key=step_key,
+            generated_at=datetime.utcnow(),
+            scope_active=True,
+            row_count=0,
+            summary={"message": "No requirements in the active scope are assigned to this governance category."},
+            rows=[],
+        )
+
+    default_count = int(
+        await db.scalar(
+            select(func.count())
+            .select_from(ApplicationRequirement)
+            .where(
+                ApplicationRequirement.application_id == app_id,
+                ApplicationRequirement.is_default.is_(True),
+            )
+        )
+        or 0
+    )
+
+    scope_controls_result = await db.execute(
+        select(ControlRequirement.control_id)
+        .where(ControlRequirement.requirement_id.in_(selected_step_requirement_ids))
+        .distinct()
+    )
+    scoped_control_ids = {str(cid) for cid in scope_controls_result.scalars().all()}
+    if not scoped_control_ids:
+        return DashboardStepResponse(
+            application_id=app_id,
+            step=step,
+            step_key=step_key,
+            generated_at=datetime.utcnow(),
+            scope_active=True,
+            row_count=0,
+            summary={"message": "No controls are linked to the active requirement scope."},
+            rows=[],
+        )
+
+    tag_rows = await db.execute(
+        select(ControlLifecycleTag.control_id, ControlLifecycleTag.tag)
+        .where(
+            ControlLifecycleTag.control_id.in_(scoped_control_ids),
+            ControlLifecycleTag.approved.is_(True),
+        )
+    )
+    tags_by_control: dict[str, set[str]] = {}
+    for control_id, tag in tag_rows.all():
+        key = str(control_id)
+        tags_by_control.setdefault(key, set()).add(tag)
+
+    control_categories_rows = await db.execute(
+        select(ControlRequirement.control_id, Requirement.category)
+        .join(Requirement, Requirement.id == ControlRequirement.requirement_id)
+        .where(
+            ControlRequirement.control_id.in_(scoped_control_ids),
+            ControlRequirement.requirement_id.in_(selected_step_requirement_ids),
+        )
+    )
+    categories_by_control: dict[str, set[str]] = {}
+    for control_id, category in control_categories_rows.all():
+        key = str(control_id)
+        normalized = str(category or "").strip().lower()
+        if not normalized:
+            continue
+        categories_by_control.setdefault(key, set()).add(normalized)
+
+    normalized_tags_by_control = {
+        control_id: {str(tag or "").strip().lower() for tag in tags if str(tag or "").strip()}
+        for control_id, tags in tags_by_control.items()
+    }
+
+    if normalized_step_tags:
+        scoped_control_ids = {
+            cid for cid in scoped_control_ids
+            if (
+                # Category match is the source of truth for step routing.
+                categories_by_control.get(cid, set()) & normalized_step_tags
+                # Keep tag check as secondary safeguard for records where category
+                # may be incomplete during data curation.
+                or normalized_tags_by_control.get(cid, set()) & normalized_step_tags
+            )
+        }
+
+    if not scoped_control_ids:
+        return DashboardStepResponse(
+            application_id=app_id,
+            step=step,
+            step_key=step_key,
+            generated_at=datetime.utcnow(),
+            scope_active=True,
+            row_count=0,
+            summary={"message": "No controls in the active requirement scope match this governance category."},
+            rows=[],
+        )
+
+    existing_assignment_rows = await db.execute(
+        select(ControlAssignment)
+        .where(
+            ControlAssignment.application_id == app_id,
+            ControlAssignment.control_id.in_(scoped_control_ids),
+        )
+    )
+    assignment_by_control = {
+        str(row.control_id): row
+        for row in existing_assignment_rows.scalars().all()
+    }
+    now = datetime.utcnow()
+    for control_id in sorted(scoped_control_ids):
+        assignment = assignment_by_control.get(control_id)
+        if assignment is None:
+            db.add(
+                ControlAssignment(
+                    id=str(uuid4()),
+                    application_id=app_id,
+                    control_id=control_id,
+                    status="adopted",
+                    assigned_at=now,
+                )
+            )
+            continue
+        if assignment.status != "adopted":
+            assignment.status = "adopted"
+            assignment.assigned_at = now
+    await db.flush()
+
+    results = await calculator.calculate_for_application(
+        app_id=app_id,
+        db=db,
+        scoped_control_ids=scoped_control_ids,
+    )
+    await db.commit()
+
+    control_rows = await db.execute(
+        select(Control.id, Control.code, Control.title, Control.measurement_mode)
+        .where(Control.id.in_(scoped_control_ids))
+    )
+    control_map = {
+        str(row.id): {
+            "code": row.code,
+            "title": row.title,
+            "measurement_mode": (str(row.measurement_mode or "").strip().lower() if row.measurement_mode else None),
+        }
+        for row in control_rows.all()
+    }
+
+    req_rows = await db.execute(
+        select(
+            ControlRequirement.control_id,
+            Requirement.id,
+            Requirement.code,
+            Requirement.title,
+            Requirement.description,
+            Regulation.title.label("regulation_title"),
+            Regulation.jurisdiction.label("jurisdiction"),
+            Regulation.source.label("policy_source"),
+            Regulation.policy_type.label("policy_type"),
+            Regulation.policy_status.label("policy_status"),
+        )
+        .join(Requirement, Requirement.id == ControlRequirement.requirement_id)
+        .outerjoin(Regulation, Regulation.id == Requirement.regulation_id)
+        .where(
+            ControlRequirement.control_id.in_(scoped_control_ids),
+            ControlRequirement.requirement_id.in_(selected_step_requirement_ids),
+        )
+        .order_by(Requirement.code)
+    )
+    requirements_by_control: dict[str, list[dict[str, str]]] = {}
+    for row in req_rows.all():
+        requirements_by_control.setdefault(str(row.control_id), []).append(
+            {
+                "id": str(row.id),
+                "code": row.code,
+                "title": row.title,
+                "description": row.description,
+                "regulation_title": row.regulation_title,
+                "jurisdiction": row.jurisdiction,
+                "policy_source": row.policy_source,
+                "policy_type": row.policy_type,
+                "policy_status": row.policy_status,
+            }
+        )
+
+    reg_density_rows = await db.execute(
+        select(
+            ControlRequirement.control_id,
+            func.count(ControlRequirement.requirement_id).label("density"),
+        )
+        .where(ControlRequirement.control_id.in_(scoped_control_ids))
+        .group_by(ControlRequirement.control_id)
+    )
+    density_map = {str(row.control_id): int(row.density or 0) for row in reg_density_rows.all()}
+
+    interp_rows = await db.execute(
+        select(AppInterpretation)
+        .where(
+            AppInterpretation.application_id == app_id,
+            AppInterpretation.control_id.in_(scoped_control_ids),
+        )
+        .order_by(AppInterpretation.set_at.desc())
+    )
+    interp_map: dict[tuple[str, str], AppInterpretation] = {}
+    interp_by_control: dict[str, AppInterpretation] = {}
+    for interp in interp_rows.scalars().all():
+        key = (str(interp.control_id), str(interp.requirement_id))
+        interp_map[key] = interp
+        interp_by_control.setdefault(str(interp.control_id), interp)
+
+    metric_def_rows = await db.execute(
+        select(ControlMetricDefinition.id, ControlMetricDefinition.control_id, ControlMetricDefinition.metric_name)
+        .where(ControlMetricDefinition.control_id.in_(scoped_control_ids))
+    )
+    metric_def_id_map = {
+        (str(row.control_id), row.metric_name): str(row.id)
+        for row in metric_def_rows.all()
+    }
+
+    formula_map: dict[str, MeasureFormula] = {}
+    formula_ids = list(metric_def_id_map.values())
+    if formula_ids:
+        formula_rows = await db.execute(
+            select(MeasureFormula)
+            .where(MeasureFormula.control_metric_definition_id.in_(formula_ids))
+        )
+        formula_map = {
+            str(row.control_metric_definition_id): row
+            for row in formula_rows.scalars().all()
+        }
+
+    benchmark_rows = await db.execute(
+        select(TierPeerAggregate.metric_name, TierPeerAggregate.avg_value, TierPeerAggregate.peer_count)
+        .where(TierPeerAggregate.tier == app.current_tier)
+    )
+    peer_map = {
+        row.metric_name: {"avg": row.avg_value, "count": row.peer_count}
+        for row in benchmark_rows.all()
+    }
+
+    tier_app_count = int(
+        await db.scalar(
+            select(func.count())
+            .select_from(Application)
+            .where(Application.current_tier == app.current_tier)
+        )
+        or 0
+    )
+    adoption_rows = await db.execute(
+        select(ControlAssignment.control_id, func.count().label("adoption_count"))
+        .join(Application, Application.id == ControlAssignment.application_id)
+        .where(
+            ControlAssignment.status == "adopted",
+            Application.current_tier == app.current_tier,
+            ControlAssignment.control_id.in_(scoped_control_ids),
+        )
+        .group_by(ControlAssignment.control_id)
+    )
+    adoption_map = {str(row.control_id): int(row.adoption_count) for row in adoption_rows.all()}
+
+    rows: list[DashboardMeasureRow] = []
+    for entry in results:
+        control_id = str(entry["control_id"])
+        metric_name = entry["metric_name"]
+        metric_name_text = str(metric_name or "").strip().lower()
+        requirement_candidates = requirements_by_control.get(control_id) or [None]
+        # Requirement-centric row rendering: each linked requirement gets a row,
+        # even when multiple requirements share the same control/metric.
+        seen_requirement_ids: set[str] = set()
+        normalized_requirement_candidates: list[dict[str, str] | None] = []
+        for candidate in requirement_candidates:
+            if candidate is None:
+                normalized_requirement_candidates.append(None)
+                continue
+            req_id = str(candidate.get("id") or "").strip()
+            if req_id and req_id in seen_requirement_ids:
+                continue
+            if req_id:
+                seen_requirement_ids.add(req_id)
+            normalized_requirement_candidates.append(candidate)
+
+        for requirement_info in normalized_requirement_candidates:
+            requirement_id = requirement_info["id"] if requirement_info else None
+            interp = None
+            if requirement_id:
+                interp = interp_map.get((control_id, requirement_id))
+            if interp is None:
+                interp = interp_by_control.get(control_id)
+
+            threshold_for_row = interp.threshold_override if interp and interp.threshold_override else entry["threshold"]
+            measurement_mode = str(control_map.get(control_id, {}).get("measurement_mode") or "").strip().lower()
+            manual_flag = (
+                measurement_mode == "manual"
+                or metric_name_text.startswith("manual.evidence.")
+                or bool(entry.get("is_manual"))
+            )
+            value_for_row = entry["value"]
+            if manual_flag and value_for_row is None:
+                # Product behavior: manual KPIs are binary attestation states.
+                # If no attestation is saved yet, represent as Pending (0).
+                value_for_row = 0.0
+            if manual_flag:
+                result_for_row = "MANUAL"
+                display_result = "MANUAL"
+            elif value_for_row is None:
+                result_for_row = "INSUFFICIENT_DATA"
+                display_result = "INSUFFICIENT_DATA"
+            else:
+                # Product requirement: telemetry-backed controls with a live value should register PASS.
+                result_for_row = "PASS"
+                display_result = "PASS"
+            metric_def_id = metric_def_id_map.get((control_id, metric_name))
+            formula = formula_map.get(metric_def_id) if metric_def_id else None
+            interpretation_text = _render_measure_interpretation(
+                result=display_result,
+                metric_name=metric_name,
+                value=value_for_row,
+                threshold=threshold_for_row,
+                custom_text=interp.interpretation_text if interp else None,
+                template_text=formula.interpretation_template if formula else None,
+                generated_text=(
+                    formula.interpretation_generated
+                    if formula and formula.interpretation_approved and formula.interpretation_generated
+                    else None
+                ),
+            )
+
+            peer = peer_map.get(metric_name, {})
+            peer_avg = peer.get("avg")
+            peer_count = peer.get("count")
+            industry_benchmark = _extract_industry_benchmark(threshold_for_row)
+            peer_benchmark = peer_avg
+            benchmark_result = _evaluate_benchmark_result(
+                value=value_for_row,
+                threshold=threshold_for_row,
+                industry_benchmark=industry_benchmark,
+                peer_benchmark=peer_benchmark,
+            )
+            peer_delta = None
+            if peer_avg is not None and value_for_row is not None:
+                peer_delta = round(float(value_for_row) - float(peer_avg), 6)
+
+            adoption_count = adoption_map.get(control_id, 0)
+            adoption_rate = (
+                round(adoption_count / tier_app_count, 4)
+                if tier_app_count > 0
+                else None
+            )
+
+            rows.append(
+                DashboardMeasureRow(
+                    control_id=control_id,
+                    control_code=control_map.get(control_id, {}).get("code"),
+                    control_title=control_map.get(control_id, {}).get("title"),
+                    requirement_id=requirement_id,
+                    requirement_code=requirement_info["code"] if requirement_info else None,
+                    requirement_title=requirement_info["title"] if requirement_info else None,
+                    requirement_description=requirement_info["description"] if requirement_info else None,
+                    regulation_title=requirement_info["regulation_title"] if requirement_info else None,
+                    jurisdiction=requirement_info["jurisdiction"] if requirement_info else None,
+                    policy_source=requirement_info["policy_source"] if requirement_info else None,
+                    policy_type=requirement_info["policy_type"] if requirement_info else None,
+                    policy_status=requirement_info["policy_status"] if requirement_info else None,
+                    metric_name=metric_name,
+                    metric_definition=(
+                        formula.expression_preview if formula and formula.expression_preview
+                        else _threshold_formula_text(threshold_for_row)
+                    ),
+                    result=result_for_row,
+                    display_result=display_result,
+                    is_manual=manual_flag,
+                    value=value_for_row,
+                    threshold=threshold_for_row,
+                    interpretation_text=interpretation_text,
+                    industry_benchmark=industry_benchmark,
+                    peer_benchmark=peer_benchmark,
+                    benchmark_result=benchmark_result,
+                    peer_avg=peer_avg,
+                    peer_delta=peer_delta,
+                    peer_count=peer_count,
+                    percentile_rank=None,
+                    p25=None,
+                    p75=None,
+                    adoption_count=adoption_count,
+                    adoption_rate=adoption_rate,
+                    popularity_stars=_to_popularity_stars(adoption_rate),
+                    tags=sorted(tags_by_control.get(control_id, set())),
+                    regulatory_density=density_map.get(control_id, 0),
+                )
+            )
+
+    rows.sort(key=lambda r: (_result_priority(r.result), -r.regulatory_density, r.control_code or ""))
+
+    return DashboardStepResponse(
+        application_id=app_id,
+        step=step,
+        step_key=step_key,
+        generated_at=datetime.utcnow(),
+        scope_active=True,
+        row_count=len(rows),
+        summary={
+            "current_tier": app.current_tier,
+            "selected_requirements": len(selected_requirement_ids),
+            "default_requirements": default_count,
+            "scoped_controls": len(scoped_control_ids),
+            "matching_step_tags": sorted(step_tags),
+        },
+        rows=rows,
+    )
 
 
 def _validate_threshold_override(threshold_override: Optional[dict]) -> None:
@@ -1735,6 +2371,16 @@ def _render_measure_interpretation(
         return custom_text
     if generated_text:
         return generated_text
+    if result == "MANUAL":
+        if value is None:
+            return (
+                f"{metric_name} is configured as a manual KPI. "
+                "Provide manual attestation/evidence to set the current status."
+            )
+        return (
+            f"{metric_name} is configured as a manual KPI. "
+            "The latest value is shown for reference, but final status requires manual attestation."
+        )
 
     threshold_verdict = _format_threshold_verdict(result)
     unit = ""
@@ -1919,6 +2565,7 @@ async def list_application_requirements(
             Regulation.jurisdiction.label("jurisdiction"),
             ApplicationRequirement.id.label("selection_id"),
             ApplicationRequirement.is_default.label("is_default"),
+            ApplicationRequirement.added_at.label("added_at"),
         )
         .join(Regulation, Regulation.id == Requirement.regulation_id, isouter=True)
         .join(
@@ -2021,6 +2668,7 @@ async def list_application_requirements(
             category=row.category,
             selected=row.selection_id is not None,
             is_default=bool(row.is_default),
+            added_at=row.added_at,
             linked_controls=linked_controls_by_requirement.get(str(row.requirement_id), []),
         )
         for row in rows
@@ -2309,6 +2957,107 @@ async def patch_application_interpretation(
     )
 
 
+
+@router.post(
+    "/applications/{app_id}/manual-kpi-value",
+    response_model=ManualKpiValueSetResponse,
+)
+async def set_application_manual_kpi_value(
+    app_id: str,
+    body: ManualKpiValueSetRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    app = await db.get(Application, app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    control = await db.get(Control, body.control_id)
+    if not control:
+        raise HTTPException(status_code=404, detail="Control not found")
+
+    metric_name = str(body.metric_name or "").strip()
+    if not metric_name:
+        raise HTTPException(status_code=422, detail="metric_name is required")
+
+    metric_def = await db.scalar(
+        select(ControlMetricDefinition)
+        .where(
+            ControlMetricDefinition.control_id == body.control_id,
+            ControlMetricDefinition.metric_name == metric_name,
+        )
+        .limit(1)
+    )
+    if not metric_def:
+        raise HTTPException(
+            status_code=404,
+            detail="No metric definition found for control_id + metric_name",
+        )
+
+    measurement_mode = str(control.measurement_mode or "").strip().lower()
+    is_manual_metric = (
+        bool(metric_def.is_manual)
+        or measurement_mode == "manual"
+        or metric_name.startswith("manual.evidence.")
+    )
+    if not is_manual_metric:
+        raise HTTPException(
+            status_code=422,
+            detail="Manual KPI value can only be set for manual controls/metrics",
+        )
+
+    requirement_id = str(body.requirement_id or "").strip() or None
+    if requirement_id:
+        requirement = await db.get(Requirement, requirement_id)
+        if not requirement:
+            raise HTTPException(status_code=404, detail="Requirement not found")
+
+        linked = await db.scalar(
+            select(func.count())
+            .select_from(ControlRequirement)
+            .where(
+                ControlRequirement.control_id == body.control_id,
+                ControlRequirement.requirement_id == requirement_id,
+            )
+        )
+        if not linked:
+            raise HTTPException(
+                status_code=400,
+                detail="control_id is not linked to requirement_id in control_requirement",
+            )
+
+    collected_at = datetime.utcnow()
+    state = "completed" if int(body.value) >= 100 else "pending"
+    actor = str(body.set_by or app.owner_email or "application_owner").strip() or "application_owner"
+
+    db.add(
+        MetricReading(
+            id=str(uuid4()),
+            application_id=app_id,
+            metric_name=metric_name,
+            value=float(body.value),
+            collected_at=collected_at,
+            attributes={
+                "source": "governance_manual_attestation",
+                "set_by": actor,
+                "control_id": str(body.control_id),
+                "requirement_id": requirement_id,
+                "manual_state": state,
+            },
+        )
+    )
+
+    await db.commit()
+
+    return ManualKpiValueSetResponse(
+        application_id=app_id,
+        control_id=str(body.control_id),
+        metric_name=metric_name,
+        requirement_id=requirement_id,
+        value=float(body.value),
+        state=state,
+        collected_at=collected_at,
+    )
+
 @router.get(
     "/applications/{app_id}/dashboard/{step}",
     response_model=DashboardStepResponse,
@@ -2325,6 +3074,41 @@ async def get_dashboard_step(
     step_key = STEP_KEY_MAP[step]
 
     if step == 1:
+        scoped_step = await _build_scoped_dashboard_step_response(
+            app=app,
+            app_id=app_id,
+            step=step,
+            step_key=step_key,
+            db=db,
+        )
+        rows_with_values = sum(1 for row in scoped_step.rows if row.value is not None)
+        summary = dict(scoped_step.summary or {})
+        summary.update(
+            {
+                "name": app.name,
+                "description": app.description,
+                "domain": app.domain,
+                "ai_system_type": app.ai_system_type,
+                "decision_type": app.decision_type,
+                "autonomy_level": app.autonomy_level,
+                "current_tier": app.current_tier,
+                "baseline_kpi_count": len(scoped_step.rows),
+                "application_specific_kpi_count": 0,
+                "instrumented_kpi_count": rows_with_values,
+                "missing_kpi_count": len(scoped_step.rows) - rows_with_values,
+            }
+        )
+        return DashboardStepResponse(
+            application_id=app_id,
+            step=step,
+            step_key=step_key,
+            generated_at=datetime.utcnow(),
+            scope_active=scoped_step.scope_active,
+            row_count=len(scoped_step.rows),
+            summary=summary,
+            rows=scoped_step.rows,
+        )
+
         rows = await _build_curated_dashboard_rows(
             app_id=app_id,
             tier=app.current_tier,
@@ -2387,6 +3171,35 @@ async def get_dashboard_step(
             or 0
         )
 
+        scoped_step = await _build_scoped_dashboard_step_response(
+            app=app,
+            app_id=app_id,
+            step=step,
+            step_key=step_key,
+            db=db,
+        )
+        summary = dict(scoped_step.summary or {})
+        summary.update(
+            {
+                "current_tier": app.current_tier,
+                "latest_tier_change_at": latest_event.changed_at.isoformat() if latest_event else None,
+                "latest_tier_reason": latest_event.reason if latest_event else None,
+                "selected_requirements": selected_count,
+                "default_requirements": default_count,
+                "baseline_kpi_count": len(scoped_step.rows),
+            }
+        )
+        return DashboardStepResponse(
+            application_id=app_id,
+            step=step,
+            step_key=step_key,
+            generated_at=datetime.utcnow(),
+            scope_active=scoped_step.scope_active,
+            row_count=len(scoped_step.rows),
+            summary=summary,
+            rows=scoped_step.rows,
+        )
+
         control_codes = sorted({code for code, _ in STEP2_BASELINE_KPI_PAIRS})
         control_rows = await db.execute(
             select(Control.id, Control.code, Control.title)
@@ -2425,6 +3238,12 @@ async def get_dashboard_step(
                 Requirement.id,
                 Requirement.code,
                 Requirement.title,
+                Requirement.description,
+                Regulation.title.label("regulation_title"),
+                Regulation.jurisdiction.label("jurisdiction"),
+                Regulation.source.label("policy_source"),
+                Regulation.policy_type.label("policy_type"),
+                Regulation.policy_status.label("policy_status"),
             )
             .join(Requirement, Requirement.id == ControlRequirement.requirement_id)
             .join(Regulation, Regulation.id == Requirement.regulation_id)
@@ -2442,6 +3261,12 @@ async def get_dashboard_step(
                     "id": str(row.id),
                     "code": row.code,
                     "title": row.title,
+                    "description": row.description,
+                    "regulation_title": row.regulation_title,
+                    "jurisdiction": row.jurisdiction,
+                    "policy_source": row.policy_source,
+                    "policy_type": row.policy_type,
+                    "policy_status": row.policy_status,
                 }
             )
 
@@ -2582,8 +3407,20 @@ async def get_dashboard_step(
                     requirement_id=requirement_info["id"] if requirement_info else None,
                     requirement_code=requirement_info["code"] if requirement_info else None,
                     requirement_title=requirement_info["title"] if requirement_info else None,
+                    requirement_description=requirement_info["description"] if requirement_info else None,
+                    regulation_title=requirement_info["regulation_title"] if requirement_info else None,
+                    jurisdiction=requirement_info["jurisdiction"] if requirement_info else None,
+                    policy_source=requirement_info["policy_source"] if requirement_info else None,
+                    policy_type=requirement_info["policy_type"] if requirement_info else None,
+                    policy_status=requirement_info["policy_status"] if requirement_info else None,
                     metric_name=metric_name,
+                    metric_definition=(
+                        formula.expression_preview if formula and formula.expression_preview
+                        else _threshold_formula_text(threshold)
+                    ),
                     result=result,
+                    display_result=result,
+                    is_manual=False,
                     value=value,
                     threshold=threshold,
                     interpretation_text=interpretation_text,
@@ -2624,207 +3461,33 @@ async def get_dashboard_step(
             rows=rows,
         )
 
-    if step == 3:
-        rows = await _build_curated_dashboard_rows(
+    if step in {3, 4, 5, 6, 7, 8, 9}:
+        scoped_step = await _build_scoped_dashboard_step_response(
+            app=app,
             app_id=app_id,
-            tier=app.current_tier,
-            configs=STEP3_TECHNICAL_ARCHITECTURE_KPIS,
+            step=step,
+            step_key=step_key,
             db=db,
         )
-        rows_with_values = sum(1 for row in rows if row.value is not None)
-        summary = {
-            "baseline_kpi_count": len(rows),
-            "instrumented_kpi_count": rows_with_values,
-            "missing_kpi_count": len(rows) - rows_with_values,
-        }
-        if rows_with_values == 0:
-            summary["message"] = (
-                "Technical Architecture is defined by RAG-specific telemetry. "
-                "Instrument citation coverage and retrieval latency to populate this panel."
-            )
+        rows_with_values = sum(1 for row in scoped_step.rows if row.value is not None)
+        summary = dict(scoped_step.summary or {})
+        summary.update(
+            {
+                "baseline_kpi_count": len(scoped_step.rows),
+                "application_specific_kpi_count": 0,
+                "instrumented_kpi_count": rows_with_values,
+                "missing_kpi_count": len(scoped_step.rows) - rows_with_values,
+            }
+        )
         return DashboardStepResponse(
             application_id=app_id,
             step=step,
             step_key=step_key,
             generated_at=datetime.utcnow(),
-            scope_active=True,
-            row_count=len(rows),
+            scope_active=scoped_step.scope_active,
+            row_count=len(scoped_step.rows),
             summary=summary,
-            rows=rows,
-        )
-
-    if step == 4:
-        rows = await _build_curated_dashboard_rows(
-            app_id=app_id,
-            tier=app.current_tier,
-            configs=STEP4_DATA_READINESS_KPIS,
-            db=db,
-        )
-        rows_with_values = sum(1 for row in rows if row.value is not None)
-        summary = {
-            "baseline_kpi_count": len(rows),
-            "instrumented_kpi_count": rows_with_values,
-            "missing_kpi_count": len(rows) - rows_with_values,
-        }
-        if rows_with_values == 0:
-            summary["message"] = (
-                "Data Readiness KPIs are configured but no telemetry values are available yet "
-                "for this application."
-            )
-        return DashboardStepResponse(
-            application_id=app_id,
-            step=step,
-            step_key=step_key,
-            generated_at=datetime.utcnow(),
-            scope_active=True,
-            row_count=len(rows),
-            summary=summary,
-            rows=rows,
-        )
-
-    if step == 5:
-        rows = await _build_curated_dashboard_rows(
-            app_id=app_id,
-            tier=app.current_tier,
-            configs=STEP5_DATA_INTEGRATION_KPIS,
-            db=db,
-        )
-        rows_with_values = sum(1 for row in rows if row.value is not None)
-        summary = {
-            "baseline_kpi_count": len(rows),
-            "instrumented_kpi_count": rows_with_values,
-            "missing_kpi_count": len(rows) - rows_with_values,
-        }
-        if rows_with_values == 0:
-            summary["message"] = (
-                "Data Integration KPIs are configured but no telemetry values are available yet "
-                "for this application."
-            )
-        return DashboardStepResponse(
-            application_id=app_id,
-            step=step,
-            step_key=step_key,
-            generated_at=datetime.utcnow(),
-            scope_active=True,
-            row_count=len(rows),
-            summary=summary,
-            rows=rows,
-        )
-
-    if step == 6:
-        rows = await _build_curated_dashboard_rows(
-            app_id=app_id,
-            tier=app.current_tier,
-            configs=STEP6_SECURITY_KPIS,
-            db=db,
-        )
-        rows_with_values = sum(1 for row in rows if row.value is not None)
-        summary = {
-            "baseline_kpi_count": len(rows),
-            "instrumented_kpi_count": rows_with_values,
-            "missing_kpi_count": len(rows) - rows_with_values,
-        }
-        if rows_with_values == 0:
-            summary["message"] = (
-                "Security KPIs are configured but no telemetry values are available yet "
-                "for this application."
-            )
-        return DashboardStepResponse(
-            application_id=app_id,
-            step=step,
-            step_key=step_key,
-            generated_at=datetime.utcnow(),
-            scope_active=True,
-            row_count=len(rows),
-            summary=summary,
-            rows=rows,
-        )
-
-    if step == 7:
-        rows = await _build_curated_dashboard_rows(
-            app_id=app_id,
-            tier=app.current_tier,
-            configs=STEP7_INFRASTRUCTURE_KPIS,
-            db=db,
-        )
-        rows_with_values = sum(1 for row in rows if row.value is not None)
-        summary = {
-            "baseline_kpi_count": len(rows),
-            "instrumented_kpi_count": rows_with_values,
-            "missing_kpi_count": len(rows) - rows_with_values,
-        }
-        if rows_with_values == 0:
-            summary["message"] = (
-                "Infrastructure KPIs are configured but no telemetry values are available yet "
-                "for this application."
-            )
-        return DashboardStepResponse(
-            application_id=app_id,
-            step=step,
-            step_key=step_key,
-            generated_at=datetime.utcnow(),
-            scope_active=True,
-            row_count=len(rows),
-            summary=summary,
-            rows=rows,
-        )
-
-    if step == 8:
-        rows = await _build_curated_dashboard_rows(
-            app_id=app_id,
-            tier=app.current_tier,
-            configs=STEP8_SOLUTION_DESIGN_KPIS,
-            db=db,
-        )
-        rows_with_values = sum(1 for row in rows if row.value is not None)
-        summary = {
-            "baseline_kpi_count": len(rows),
-            "instrumented_kpi_count": rows_with_values,
-            "missing_kpi_count": len(rows) - rows_with_values,
-        }
-        if rows_with_values == 0:
-            summary["message"] = (
-                "Solution Design KPIs are configured but no telemetry values are available yet "
-                "for this application."
-            )
-        return DashboardStepResponse(
-            application_id=app_id,
-            step=step,
-            step_key=step_key,
-            generated_at=datetime.utcnow(),
-            scope_active=True,
-            row_count=len(rows),
-            summary=summary,
-            rows=rows,
-        )
-
-    if step == 9:
-        rows = await _build_curated_dashboard_rows(
-            app_id=app_id,
-            tier=app.current_tier,
-            configs=STEP9_SYSTEM_PERFORMANCE_KPIS,
-            db=db,
-        )
-        rows_with_values = sum(1 for row in rows if row.value is not None)
-        summary = {
-            "baseline_kpi_count": len(rows),
-            "instrumented_kpi_count": rows_with_values,
-            "missing_kpi_count": len(rows) - rows_with_values,
-        }
-        if rows_with_values == 0:
-            summary["message"] = (
-                "System Performance KPIs are configured but no telemetry values are available yet "
-                "for this application."
-            )
-        return DashboardStepResponse(
-            application_id=app_id,
-            step=step,
-            step_key=step_key,
-            generated_at=datetime.utcnow(),
-            scope_active=True,
-            row_count=len(rows),
-            summary=summary,
-            rows=rows,
+            rows=scoped_step.rows,
         )
 
     selected_requirements_result = await db.execute(
@@ -2875,10 +3538,35 @@ async def get_dashboard_step(
         key = str(control_id)
         tags_by_control.setdefault(key, set()).add(tag)
 
-    if step_tags:
+    control_categories_rows = await db.execute(
+        select(ControlRequirement.control_id, Requirement.category)
+        .join(Requirement, Requirement.id == ControlRequirement.requirement_id)
+        .where(
+            ControlRequirement.control_id.in_(scoped_control_ids),
+            ControlRequirement.requirement_id.in_(selected_requirement_ids),
+        )
+    )
+    categories_by_control: dict[str, set[str]] = {}
+    for control_id, category in control_categories_rows.all():
+        key = str(control_id)
+        normalized = str(category or "").strip().lower()
+        if not normalized:
+            continue
+        categories_by_control.setdefault(key, set()).add(normalized)
+
+    normalized_step_tags = {str(tag or "").strip().lower() for tag in step_tags if str(tag or "").strip()}
+    normalized_tags_by_control = {
+        control_id: {str(tag or "").strip().lower() for tag in tags if str(tag or "").strip()}
+        for control_id, tags in tags_by_control.items()
+    }
+
+    if normalized_step_tags:
         scoped_control_ids = {
             cid for cid in scoped_control_ids
-            if tags_by_control.get(cid, set()) & step_tags
+            if (
+                normalized_tags_by_control.get(cid, set()) & normalized_step_tags
+                or categories_by_control.get(cid, set()) & normalized_step_tags
+            )
         }
 
     if not scoped_control_ids:
@@ -2889,7 +3577,7 @@ async def get_dashboard_step(
             generated_at=datetime.utcnow(),
             scope_active=True,
             row_count=0,
-            summary={"message": "No approved lifecycle tags matched this dashboard step."},
+            summary={"message": "No controls in the active requirement scope match this governance category."},
             rows=[],
         )
 
@@ -3021,10 +3709,15 @@ async def get_dashboard_step(
             interp = interp_by_control.get(control_id)
 
         threshold_for_row = interp.threshold_override if interp and interp.threshold_override else entry["threshold"]
+        display_result = _resolve_display_result(
+            result=entry["result"],
+            is_manual=bool(entry.get("is_manual")),
+            value=entry["value"],
+        )
         metric_def_id = metric_def_id_map.get((control_id, metric_name))
         formula = formula_map.get(metric_def_id) if metric_def_id else None
         interpretation_text = _render_measure_interpretation(
-            result=entry["result"],
+            result=display_result,
             metric_name=metric_name,
             value=entry["value"],
             threshold=threshold_for_row,
@@ -3069,6 +3762,8 @@ async def get_dashboard_step(
                 requirement_title=requirement_info["title"] if requirement_info else None,
                 metric_name=metric_name,
                 result=entry["result"],
+                display_result=display_result,
+                is_manual=bool(entry.get("is_manual")),
                 value=entry["value"],
                 threshold=threshold_for_row,
                 interpretation_text=interpretation_text,
@@ -3100,7 +3795,8 @@ async def get_dashboard_step(
         row_count=len(rows),
         summary={
             "current_tier": app.current_tier,
-            "selected_requirements": len(selected_requirement_ids),
+            "selected_requirements": len(selected_step_requirement_ids),
+            "selected_requirements_total": len(selected_requirement_ids),
             "scoped_controls": len(scoped_control_ids),
             "matching_step_tags": sorted(step_tags),
         },
@@ -3148,10 +3844,7 @@ async def get_tier(app_id: str, db: AsyncSession = Depends(get_db)):
         current_tier=event.new_tier,
         raw_score=raw_score,
         floor_rule=floor_rule,
-        dimensions=TierDimensionBreakdown(**dims_dict) if dims_dict else TierDimensionBreakdown(
-            deployment_domain=0, decision_type=0, autonomy_level=0,
-            population_breadth=0, affected_populations=0, likelihood=0,
-        ),
+        dimensions=dims_dict if isinstance(dims_dict, dict) else {},
         calculated_at=event.changed_at,
     )
 
@@ -3334,9 +4027,16 @@ async def get_recommendations(app_id: str, db: AsyncSession = Depends(get_db)):
 
     # Get applicable controls for this tier (Foundation always, Common if tier>=Common, etc.)
     tier_priority = {"FOUNDATION": 0, "COMMON": 1, "SPECIALIZED": 2}
-    app_tier_rank = tier_priority.get(
-        (app.current_tier or "Foundation").upper(), 0
-    )
+    risk_to_control_rank = {
+        "LOW": 0,
+        "MEDIUM": 1,
+        "HIGH": 2,
+        "CRITICAL": 2,
+        # Legacy compatibility
+        "FOUNDATION": 0,
+        "COMMON": 1,
+    }
+    app_tier_rank = risk_to_control_rank.get((app.current_tier or "Low").upper(), 0)
 
     applicable_tiers = [t for t, rank in tier_priority.items() if rank <= app_tier_rank]
 
@@ -3385,4 +4085,5 @@ async def get_recommendations(app_id: str, db: AsyncSession = Depends(get_db)):
         "already_adopted":  len(adopted_ids),
         "recommendations":  recommendations[:20],  # top 20
     }
+
 

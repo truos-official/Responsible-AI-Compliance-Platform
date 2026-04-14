@@ -103,7 +103,6 @@ export default function ApplicationsTab({ onNavigate }) {
                 <th>Name</th>
                 <th>Tier</th>
                 <th>Status</th>
-                <th>Domain</th>
                 <th>Registered</th>
                 <th>Actions</th>
               </tr>
@@ -126,7 +125,6 @@ export default function ApplicationsTab({ onNavigate }) {
                         {app.status}
                       </span>
                     </td>
-                    <td>{app.domain || 'N/A'}</td>
                     <td>{fmtDate(app.registered_at)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

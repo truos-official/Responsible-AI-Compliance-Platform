@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import (
@@ -47,6 +47,34 @@ FORMULA_DIVIDE_PATTERN = re.compile(
     r"^\s*([a-zA-Z0-9_.]+)\s*/\s*([0-9]+(?:\.[0-9]+)?)\s*$",
     re.IGNORECASE,
 )
+
+PROXY_METRIC_RULES: dict[str, list[dict[str, str]]] = {
+    # Secretariat telemetry aliases/proxies resolved from metrics already emitted by connected apps.
+    "ai.robustness.drift_score": [
+        {"source_metric": "ai.core.drift_score", "transform": "identity"},
+    ],
+    "ai.disclosure.consumer_rate": [
+        {"source_metric": "ai.transparency.disclosure_rate", "transform": "to_percent"},
+        {"source_metric": "ai.rag.citation_coverage", "transform": "to_percent"},
+    ],
+    "ai.incident.detection_rate": [
+        {"source_metric": "ai.core.error_rate", "transform": "inverse_percent"},
+    ],
+    "ai.data.dlp_incident_rate": [
+        {"source_metric": "ai.core.error_rate", "transform": "to_percent"},
+    ],
+    "ai.fairness.demographic_parity": [
+        {"source_metric": "ai.oversight.feedback_positive_rate", "transform": "to_percent"},
+    ],
+    "ai.fairness.equal_opportunity": [
+        {"source_metric": "ai.oversight.feedback_positive_rate", "transform": "to_percent"},
+    ],
+    "ai.security.pentest_age": [
+        {"source_metric": "ai.security.pentest_age_days", "transform": "identity"},
+        {"source_metric": "ai.incident.detection_rate", "transform": "inverse_percent"},
+        {"source_metric": "ai.core.error_rate", "transform": "to_percent"},
+    ],
+}
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +176,21 @@ def _to_percent_points(value: float) -> float:
     return value * 100.0 if abs(value) <= 1.0 else value
 
 
+def _apply_proxy_transform(value: float, transform: str) -> Optional[float]:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    transform_key = (transform or "identity").strip().lower()
+    if transform_key == "identity":
+        return numeric
+    if transform_key == "to_percent":
+        return _to_percent_points(numeric)
+    if transform_key == "inverse_percent":
+        return max(0.0, 100.0 - _to_percent_points(numeric))
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Main calculator
 # ---------------------------------------------------------------------------
@@ -227,36 +270,80 @@ class KPICalculator:
         threshold_obj = mdef.threshold or {}
 
         # 3. Pull latest MetricReading for this app + metric_name
-        reading_result = await db.execute(
+        reading_query = (
             select(MetricReading)
             .where(
                 MetricReading.application_id == app_id,
                 MetricReading.metric_name    == mdef.metric_name,
             )
+        )
+        # Manual KPI updates are scoped per control via metric_reading.attributes.control_id.
+        # This prevents one manual toggle from affecting every control sharing the metric name.
+        if mdef.is_manual:
+            reading_query = reading_query.where(
+                func.json_extract_path_text(MetricReading.attributes, "control_id") == str(mdef.control_id)
+            )
+        reading_result = await db.execute(
+            reading_query
             .order_by(desc(MetricReading.collected_at))
             .limit(1)
         )
-        reading: Optional[MetricReading] = reading_result.scalar_one_or_none()
-        if reading is not None and _is_stale_timestamp(reading.collected_at, threshold_obj):
+        latest_reading: Optional[MetricReading] = reading_result.scalar_one_or_none()
+        stale_reading: Optional[MetricReading] = None
+        reading = latest_reading
+        if (not mdef.is_manual) and reading is not None and _is_stale_timestamp(reading.collected_at, threshold_obj):
+            stale_reading = reading
             reading = None
 
         # 4. Evaluate threshold
         if reading is None:
-            derived_value = await self._evaluate_derived_formula(
-                app_id=app_id,
-                threshold=threshold_obj,
-                db=db,
-            )
-            if derived_value is None:
+            if mdef.is_manual:
+                # Manual KPIs are explicitly user-attested; do not auto-fill from
+                # derived/proxy telemetry when no manual value has been set yet.
                 kpi_result = INSUFFICIENT_DATA
                 value = None
                 evidence_ts = None
             else:
-                value = derived_value
-                evidence_ts = None
-                if mdef.is_manual:
-                    kpi_result = INSUFFICIENT_DATA
+                derived_value = await self._evaluate_derived_formula(
+                    app_id=app_id,
+                    threshold=threshold_obj,
+                    db=db,
+                )
+                if derived_value is None:
+                    stale_derived_value = await self._evaluate_derived_formula(
+                        app_id=app_id,
+                        threshold=threshold_obj,
+                        db=db,
+                        allow_stale=True,
+                    )
+                    if stale_derived_value is not None:
+                        value = stale_derived_value
+                        evidence_ts = None
+                        kpi_result = _evaluate_threshold(value, threshold_obj)
+                    elif stale_reading is not None:
+                        # Dashboard fallback for demo/runtime continuity:
+                        # keep showing latest observed value even if stale.
+                        value = stale_reading.value
+                        evidence_ts = stale_reading.collected_at
+                        kpi_result = _evaluate_threshold(value, threshold_obj)
+                    else:
+                        proxy_value = await self._resolve_proxy_metric_value(
+                            app_id=app_id,
+                            metric_name=mdef.metric_name,
+                            threshold=threshold_obj,
+                            db=db,
+                        )
+                        if proxy_value is not None:
+                            value = proxy_value
+                            evidence_ts = None
+                            kpi_result = _evaluate_threshold(value, threshold_obj)
+                        else:
+                            kpi_result = INSUFFICIENT_DATA
+                            value = None
+                            evidence_ts = None
                 else:
+                    value = derived_value
+                    evidence_ts = None
                     kpi_result = _evaluate_threshold(value, threshold_obj)
         else:
             value       = reading.value
@@ -371,6 +458,37 @@ class KPICalculator:
         if (not allow_stale) and _is_stale_timestamp(reading.collected_at, threshold):
             return None
         return float(reading.value)
+
+    async def _resolve_proxy_metric_value(
+        self,
+        *,
+        app_id: str,
+        metric_name: str,
+        threshold: dict,
+        db: AsyncSession,
+    ) -> Optional[float]:
+        rules = PROXY_METRIC_RULES.get(metric_name, [])
+        for rule in rules:
+            source_metric = str(rule.get("source_metric") or "").strip()
+            if not source_metric:
+                continue
+            source_value = await self._latest_metric_value(
+                app_id=app_id,
+                metric_name=source_metric,
+                threshold=threshold,
+                db=db,
+                allow_stale=True,
+            )
+            if source_value is None:
+                continue
+            transformed = _apply_proxy_transform(
+                source_value,
+                str(rule.get("transform") or "identity"),
+            )
+            if transformed is None:
+                continue
+            return transformed
+        return None
 
     def _evaluate_metric(self, metric_name: str, value: float, threshold: dict) -> str:
         """Public wrapper — kept for interface compatibility with stub."""

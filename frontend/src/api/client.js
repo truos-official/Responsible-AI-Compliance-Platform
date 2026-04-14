@@ -26,6 +26,7 @@ export const api = {
   createApplicationInterpretation: (id, body) => request('POST', `/applications/${id}/interpretations`, body),
   patchApplicationInterpretation: (id, interpretationId, body) => request('PATCH', `/applications/${id}/interpretations/${interpretationId}`, body),
   getApplicationDashboardStep: (id, step) => request('GET', `/applications/${id}/dashboard/${step}`),
+  setApplicationManualKpiValue: (id, body) => request('POST', `/applications/${id}/manual-kpi-value`, body),
 
   // Tier
   getTier:        (id) => request('GET', `/applications/${id}/tier`),
@@ -64,4 +65,7 @@ export const api = {
   // Health
   health: () => request('GET', '/health').catch(() => ({ status: 'error' })),
 };
+
+
+
 

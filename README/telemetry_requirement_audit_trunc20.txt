@@ -1,0 +1,778 @@
+﻿RequirementCode|RequirementTitle|RequirementDesc|RequirementCategory|Telemetry|Control|Metric|ValueFormula|Interpretation|IndustryBench|Regulation|Rule|Geography|BaselineFlag
+CA-001|Providers of AI syst|SB 942 §22757|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|SB 942 §22757|90.0|California AI Laws|Providers of AI syst|US-CA|Baseline
+CA-001|Providers of AI syst|SB 942 §22757|Corporate Oversight|NO|Technical Documentat|NO_METRIC|NO_FORMULA|SB 942 §22757|N/A|California AI Laws|Providers of AI syst|US-CA|Not Baseline
+CA-001|Providers of AI syst|SB 942 §22757|Corporate Oversight|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|California AI Laws|Providers of AI syst|US-CA|Baseline
+CA-001|Providers of AI syst|SB 942 §22757|Corporate Oversight|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|SB 942 §22757|80.0|California AI Laws|Providers of AI syst|US-CA|Baseline
+CA-002|Providers of generat|SB 942 §22757(a)(2)|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|SB 942 §22757(a)(2)|90.0|California AI Laws|Providers of generat|US-CA|Baseline
+CA-002|Providers of generat|SB 942 §22757(a)(2)|Corporate Oversight|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|SB 942 §22757(a)(2)|N/A|California AI Laws|Providers of generat|US-CA|Not Baseline
+CA-002|Providers of generat|SB 942 §22757(a)(2)|Corporate Oversight|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|California AI Laws|Providers of generat|US-CA|Baseline
+CA-002|Providers of generat|SB 942 §22757(a)(2)|Corporate Oversight|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|SB 942 §22757(a)(2)|80.0|California AI Laws|Providers of generat|US-CA|Baseline
+CA-003|Providers of generat|AB 2013 §22756|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|AB 2013 §22756|90.0|California AI Laws|Providers of generat|US-CA|Baseline
+CA-003|Providers of generat|AB 2013 §22756|Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|AB 2013 §22756|N/A|California AI Laws|Providers of generat|US-CA|Not Baseline
+CA-003|Providers of generat|AB 2013 §22756|Risk & Compliance|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|California AI Laws|Providers of generat|US-CA|Baseline
+CA-003|Providers of generat|AB 2013 §22756|Risk & Compliance|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|AB 2013 §22756|80.0|California AI Laws|Providers of generat|US-CA|Baseline
+CA-004|Training data docume|AB 2013 §22756(b)|Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|AB 2013 §22756(b)|N/A|California AI Laws|Training data docume|US-CA|Not Baseline
+CA-004|Training data docume|AB 2013 §22756(b)|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|AB 2013 §22756(b)|N/A|California AI Laws|Training data docume|US-CA|Not Baseline
+CA-004|Training data docume|AB 2013 §22756(b)|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|AB 2013 §22756(b)|N/A|California AI Laws|Training data docume|US-CA|Not Baseline
+CA-004|Training data docume|AB 2013 §22756(b)|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|AB 2013 §22756(b)|N/A|California AI Laws|Training data docume|US-CA|Not Baseline
+CA-005|Developers of covere|SB 53 §22603(a)|Risk & Compliance|NO|Executive Commitment|NO_METRIC|NO_FORMULA|SB 53 §22603(a)|N/A|California AI Laws|Developers of covere|US-CA|Baseline
+CA-005|Developers of covere|SB 53 §22603(a)|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|SB 53 §22603(a)|80.0|California AI Laws|Developers of covere|US-CA|Baseline
+CA-005|Developers of covere|SB 53 §22603(a)|Risk & Compliance|NO|Safety|NO_METRIC|NO_FORMULA|SB 53 §22603(a)|N/A|California AI Laws|Developers of covere|US-CA|Not Baseline
+CA-005|Developers of covere|SB 53 §22603(a)|Risk & Compliance|NO|Security Governance|NO_METRIC|NO_FORMULA|SB 53 §22603(a)|N/A|California AI Laws|Developers of covere|US-CA|Baseline
+CA-006|Frontier AI develope|SB 53 §22603(b)|System Performance|NO|Incident Reporting|NO_METRIC|NO_FORMULA|SB 53 §22603(b)|N/A|California AI Laws|Frontier AI develope|US-CA|Not Baseline
+CA-006|Frontier AI develope|SB 53 §22603(b)|System Performance|NO|Incident Analysis|NO_METRIC|NO_FORMULA|SB 53 §22603(b)|N/A|California AI Laws|Frontier AI develope|US-CA|Not Baseline
+CA-006|Frontier AI develope|SB 53 §22603(b)|System Performance|NO|Regulatory Safety In|NO_METRIC|NO_FORMULA|SB 53 §22603(b)|N/A|California AI Laws|Frontier AI develope|US-CA|Not Baseline
+CA-006|Frontier AI develope|SB 53 §22603(b)|System Performance|NO|Safety|NO_METRIC|NO_FORMULA|SB 53 §22603(b)|N/A|California AI Laws|Frontier AI develope|US-CA|Not Baseline
+CA-007|Frontier AI develope|SB 53 §22603(c)|Risk & Compliance|NO|Lifecycle Management|NO_METRIC|NO_FORMULA|SB 53 §22603(c)|N/A|California AI Laws|Frontier AI develope|US-CA|Not Baseline
+CA-007|Frontier AI develope|SB 53 §22603(c)|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|SB 53 §22603(c)|N/A|California AI Laws|Frontier AI develope|US-CA|Not Baseline
+CA-007|Frontier AI develope|SB 53 §22603(c)|Risk & Compliance|NO|Safety|NO_METRIC|NO_FORMULA|SB 53 §22603(c)|N/A|California AI Laws|Frontier AI develope|US-CA|Not Baseline
+CHN-001|Benefits and risks W|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|China Policies|Benefits and risks W|China|Not Baseline
+CHN-001|Benefits and risks W|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|China Policies|Benefits and risks W|China|Not Baseline
+CHN-002|Singapore believes t|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|China Policies|Singapore believes t|China|Not Baseline
+CHN-002|Singapore believes t|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Imported from PDF so|90.0|China Policies|Singapore believes t|China|Not Baseline
+CHN-003|Conceptual and regul|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|China Policies|Conceptual and regul|China|Not Baseline
+CHN-003|Conceptual and regul|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Imported from PDF so|90.0|China Policies|Conceptual and regul|China|Not Baseline
+CHN-004|With respect to the |Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|China Policies|With respect to the |China|Not Baseline
+CHN-004|With respect to the |Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Imported from PDF so|90.0|China Policies|With respect to the |China|Not Baseline
+CHN-005|As concerns privacy |Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|China Policies|As concerns privacy |China|Not Baseline
+CHN-005|As concerns privacy |Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|China Policies|As concerns privacy |China|Not Baseline
+CHN-006|• During the design |Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|China Policies|• During the design |China|Not Baseline
+CHN-006|• During the design |Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Imported from PDF so|90.0|China Policies|• During the design |China|Not Baseline
+CHN-007|• To ensure protecti|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|China Policies|• To ensure protecti|China|Not Baseline
+CHN-007|• To ensure protecti|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|China Policies|• To ensure protecti|China|Not Baseline
+CHN-008|(b) A data safeguard|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|China Policies|(b) A data safeguard|China|Not Baseline
+CHN-008|(b) A data safeguard|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Imported from PDF so|90.0|China Policies|(b) A data safeguard|China|Not Baseline
+CHN-009|(f) Service provider|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|China Policies|(f) Service provider|China|Not Baseline
+CHN-009|(f) Service provider|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|China Policies|(f) Service provider|China|Not Baseline
+CHN-010|(c) Developers shoul|Imported from PDF so|Security|NO|Data Security|ai.data.dlp_incident|count(dlp_incidents)|Imported from PDF so|N/A|China Policies|(c) Developers shoul|China|Not Baseline
+CHN-010|(c) Developers shoul|Imported from PDF so|Security|NO|Data Security|ai.data.encryption_c|(encrypted_datasets |Imported from PDF so|N/A|China Policies|(c) Developers shoul|China|Not Baseline
+CHN-011|We make every effort|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|China Policies|We make every effort|China|Baseline
+CHN-011|We make every effort|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|China Policies|We make every effort|China|Baseline
+CHN-012|(d) Data security ma|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|China Policies|(d) Data security ma|China|Not Baseline
+CHN-012|(d) Data security ma|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Imported from PDF so|90.0|China Policies|(d) Data security ma|China|Not Baseline
+CHN-013|6.3 Safety guideline|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|China Policies|6.3 Safety guideline|China|Baseline
+CHN-013|6.3 Safety guideline|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|China Policies|6.3 Safety guideline|China|Baseline
+CHN-014|2.3 Comprehensive go|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|China Policies|2.3 Comprehensive go|China|Baseline
+CHN-014|2.3 Comprehensive go|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|China Policies|2.3 Comprehensive go|China|Baseline
+CHN-015|Technological measur|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|China Policies|Technological measur|China|Not Baseline
+CHN-015|Technological measur|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|China Policies|Technological measur|China|Not Baseline
+CO-001|Developers shall use|Section 6-1-1702(1)|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Section 6-1-1702(1)|0.10|Colorado AI Act|Developers shall use|US-CO|Not Baseline
+CO-001|Developers shall use|Section 6-1-1702(1)|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|Colorado AI Act|Developers shall use|US-CO|Not Baseline
+CO-001|Developers shall use|Section 6-1-1702(1)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Section 6-1-1702(1)|N/A|Colorado AI Act|Developers shall use|US-CO|Not Baseline
+CO-001|Developers shall use|Section 6-1-1702(1)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Section 6-1-1702(1)|N/A|Colorado AI Act|Developers shall use|US-CO|Not Baseline
+CO-001|Developers shall use|Section 6-1-1702(1)|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|Section 6-1-1702(1)|N/A|Colorado AI Act|Developers shall use|US-CO|Not Baseline
+CO-002|Deployers shall use |Section 6-1-1703(1)|Solution Design|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Section 6-1-1703(1)|0.10|Colorado AI Act|Deployers shall use |US-CO|Not Baseline
+CO-002|Deployers shall use |Section 6-1-1703(1)|Solution Design|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Section 6-1-1703(1)|N/A|Colorado AI Act|Deployers shall use |US-CO|Not Baseline
+CO-002|Deployers shall use |Section 6-1-1703(1)|Solution Design|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Section 6-1-1703(1)|N/A|Colorado AI Act|Deployers shall use |US-CO|Not Baseline
+CO-002|Deployers shall use |Section 6-1-1703(1)|Solution Design|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Section 6-1-1703(1)|N/A|Colorado AI Act|Deployers shall use |US-CO|Not Baseline
+CO-002|Deployers shall use |Section 6-1-1703(1)|Solution Design|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|Section 6-1-1703(1)|N/A|Colorado AI Act|Deployers shall use |US-CO|Not Baseline
+CO-003|Deployers shall impl|Section 6-1-1703(1)(|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|Section 6-1-1703(1)(|80.0|Colorado AI Act|Deployers shall impl|US-CO|Baseline
+CO-003|Deployers shall impl|Section 6-1-1703(1)(|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Section 6-1-1703(1)(|0.10|Colorado AI Act|Deployers shall impl|US-CO|Not Baseline
+CO-003|Deployers shall impl|Section 6-1-1703(1)(|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|Colorado AI Act|Deployers shall impl|US-CO|Not Baseline
+CO-003|Deployers shall impl|Section 6-1-1703(1)(|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall impl|US-CO|Not Baseline
+CO-003|Deployers shall impl|Section 6-1-1703(1)(|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall impl|US-CO|Not Baseline
+CO-003|Deployers shall impl|Section 6-1-1703(1)(|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall impl|US-CO|Not Baseline
+CO-004|Deployers shall comp|Section 6-1-1703(1)(|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall comp|US-CO|Not Baseline
+CO-004|Deployers shall comp|Section 6-1-1703(1)(|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Section 6-1-1703(1)(|0.15|Colorado AI Act|Deployers shall comp|US-CO|Not Baseline
+CO-004|Deployers shall comp|Section 6-1-1703(1)(|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|Colorado AI Act|Deployers shall comp|US-CO|Not Baseline
+CO-004|Deployers shall comp|Section 6-1-1703(1)(|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall comp|US-CO|Not Baseline
+CO-004|Deployers shall comp|Section 6-1-1703(1)(|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall comp|US-CO|Not Baseline
+CO-005|Impact assessments s|Section 6-1-1703(1)(|Risk & Compliance|NO|Change Management|NO_METRIC|NO_FORMULA|Section 6-1-1703(1)(|N/A|Colorado AI Act|Impact assessments s|US-CO|Not Baseline
+CO-005|Impact assessments s|Section 6-1-1703(1)(|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Section 6-1-1703(1)(|N/A|Colorado AI Act|Impact assessments s|US-CO|Not Baseline
+CO-005|Impact assessments s|Section 6-1-1703(1)(|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Section 6-1-1703(1)(|N/A|Colorado AI Act|Impact assessments s|US-CO|Not Baseline
+CO-005|Impact assessments s|Section 6-1-1703(1)(|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Section 6-1-1703(1)(|0.15|Colorado AI Act|Impact assessments s|US-CO|Not Baseline
+CO-005|Impact assessments s|Section 6-1-1703(1)(|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|Colorado AI Act|Impact assessments s|US-CO|Not Baseline
+CO-006|Deployers shall make|Section 6-1-1703(1)(|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall make|US-CO|Baseline
+CO-006|Deployers shall make|Section 6-1-1703(1)(|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|Colorado AI Act|Deployers shall make|US-CO|Not Baseline
+CO-006|Deployers shall make|Section 6-1-1703(1)(|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Section 6-1-1703(1)(|90.0|Colorado AI Act|Deployers shall make|US-CO|Not Baseline
+CO-006|Deployers shall make|Section 6-1-1703(1)(|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall make|US-CO|Not Baseline
+CO-007|Deployers shall prov|Section 6-1-1703(1)(|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Section 6-1-1703(1)(|90.0|Colorado AI Act|Deployers shall prov|US-CO|Baseline
+CO-007|Deployers shall prov|Section 6-1-1703(1)(|Risk & Compliance|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall prov|US-CO|Not Baseline
+CO-007|Deployers shall prov|Section 6-1-1703(1)(|Risk & Compliance|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|Colorado AI Act|Deployers shall prov|US-CO|Baseline
+CO-007|Deployers shall prov|Section 6-1-1703(1)(|Risk & Compliance|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|Section 6-1-1703(1)(|80.0|Colorado AI Act|Deployers shall prov|US-CO|Baseline
+CO-008|Deployers shall prov|Section 6-1-1703(1)(|Corporate Oversight|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall prov|US-CO|Not Baseline
+CO-008|Deployers shall prov|Section 6-1-1703(1)(|Corporate Oversight|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Section 6-1-1703(1)(|0.10|Colorado AI Act|Deployers shall prov|US-CO|Not Baseline
+CO-008|Deployers shall prov|Section 6-1-1703(1)(|Corporate Oversight|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall prov|US-CO|Not Baseline
+CO-008|Deployers shall prov|Section 6-1-1703(1)(|Corporate Oversight|NO|Adverse Decision App|ai.appeals.rate|(appeals_submitted /|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall prov|US-CO|Not Baseline
+CO-008|Deployers shall prov|Section 6-1-1703(1)(|Corporate Oversight|NO|Adverse Decision App|ai.appeals.resolutio|mean(resolution_time|Section 6-1-1703(1)(|N/A|Colorado AI Act|Deployers shall prov|US-CO|Not Baseline
+CO-009|Developers shall mak|Section 6-1-1702(1)(|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Section 6-1-1702(1)(|90.0|Colorado AI Act|Developers shall mak|US-CO|Baseline
+CO-009|Developers shall mak|Section 6-1-1702(1)(|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|Section 6-1-1702(1)(|N/A|Colorado AI Act|Developers shall mak|US-CO|Not Baseline
+CO-009|Developers shall mak|Section 6-1-1702(1)(|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Section 6-1-1702(1)(|N/A|Colorado AI Act|Developers shall mak|US-CO|Not Baseline
+CO-009|Developers shall mak|Section 6-1-1702(1)(|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Section 6-1-1702(1)(|N/A|Colorado AI Act|Developers shall mak|US-CO|Not Baseline
+CO-009|Developers shall mak|Section 6-1-1702(1)(|Risk & Compliance|NO|Third-Party Responsi|NO_METRIC|NO_FORMULA|Section 6-1-1702(1)(|N/A|Colorado AI Act|Developers shall mak|US-CO|Not Baseline
+CO-010|Developers shall pub|Section 6-1-1702(1)(|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Section 6-1-1702(1)(|90.0|Colorado AI Act|Developers shall pub|US-CO|Baseline
+CO-010|Developers shall pub|Section 6-1-1702(1)(|Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|Section 6-1-1702(1)(|N/A|Colorado AI Act|Developers shall pub|US-CO|Not Baseline
+CO-010|Developers shall pub|Section 6-1-1702(1)(|Risk & Compliance|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|Colorado AI Act|Developers shall pub|US-CO|Baseline
+CO-010|Developers shall pub|Section 6-1-1702(1)(|Risk & Compliance|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|Section 6-1-1702(1)(|80.0|Colorado AI Act|Developers shall pub|US-CO|Baseline
+CO-011|Deployers shall impl|Section 6-1-1703(2)|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|Section 6-1-1703(2)|N/A|Colorado AI Act|Deployers shall impl|US-CO|Baseline
+CO-011|Deployers shall impl|Section 6-1-1703(2)|Risk & Compliance|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Section 6-1-1703(2)|N/A|Colorado AI Act|Deployers shall impl|US-CO|Not Baseline
+CO-011|Deployers shall impl|Section 6-1-1703(2)|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|Section 6-1-1703(2)|80.0|Colorado AI Act|Deployers shall impl|US-CO|Baseline
+CO-011|Deployers shall impl|Section 6-1-1703(2)|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|Section 6-1-1703(2)|N/A|Colorado AI Act|Deployers shall impl|US-CO|Not Baseline
+CO-012|Compliance with NIST|Section 6-1-1703(4)|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|Section 6-1-1703(4)|80.0|Colorado AI Act|Compliance with NIST|US-CO|Baseline
+CO-012|Compliance with NIST|Section 6-1-1703(4)|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|Colorado AI Act|Compliance with NIST|US-CO|Not Baseline
+CO-012|Compliance with NIST|Section 6-1-1703(4)|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Section 6-1-1703(4)|90.0|Colorado AI Act|Compliance with NIST|US-CO|Not Baseline
+EU-001|Providers of high-ri|Article 9(1)|Risk & Compliance|NO|Lifecycle Management|NO_METRIC|NO_FORMULA|Article 9(1)|N/A|EU AI Act|Providers of high-ri|EU|Not Baseline
+EU-001|Providers of high-ri|Article 9(1)|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|Article 9(1)|80.0|EU AI Act|Providers of high-ri|EU|Baseline
+EU-001|Providers of high-ri|Article 9(1)|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Article 9(1)|0.05|EU AI Act|Providers of high-ri|EU|Baseline
+EU-001|Providers of high-ri|Article 9(1)|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|EU AI Act|Providers of high-ri|EU|Baseline
+EU-001|Providers of high-ri|Article 9(1)|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Article 9(1)|0.10|EU AI Act|Providers of high-ri|EU|Not Baseline
+EU-001|Providers of high-ri|Article 9(1)|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|EU AI Act|Providers of high-ri|EU|Not Baseline
+EU-001|Providers of high-ri|Article 9(1)|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Article 9(1)|N/A|EU AI Act|Providers of high-ri|EU|Not Baseline
+EU-001|Providers of high-ri|Article 9(1)|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Article 9(1)|N/A|EU AI Act|Providers of high-ri|EU|Not Baseline
+EU-002|The risk management |Article 9(2)(a)|Risk & Compliance|NO|AI System Context an|NO_METRIC|NO_FORMULA|Article 9(2)(a)|N/A|EU AI Act|The risk management |EU|Baseline
+EU-002|The risk management |Article 9(2)(a)|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Article 9(2)(a)|0.05|EU AI Act|The risk management |EU|Baseline
+EU-002|The risk management |Article 9(2)(a)|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|EU AI Act|The risk management |EU|Baseline
+EU-002|The risk management |Article 9(2)(a)|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Article 9(2)(a)|0.15|EU AI Act|The risk management |EU|Not Baseline
+EU-002|The risk management |Article 9(2)(a)|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|EU AI Act|The risk management |EU|Not Baseline
+EU-003|Providers must estim|Article 9(2)(b)|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Article 9(2)(b)|0.05|EU AI Act|Providers must estim|EU|Baseline
+EU-003|Providers must estim|Article 9(2)(b)|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|EU AI Act|Providers must estim|EU|Baseline
+EU-003|Providers must estim|Article 9(2)(b)|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Article 9(2)(b)|0.10|EU AI Act|Providers must estim|EU|Not Baseline
+EU-003|Providers must estim|Article 9(2)(b)|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|EU AI Act|Providers must estim|EU|Not Baseline
+EU-003|Providers must estim|Article 9(2)(b)|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Article 9(2)(b)|0.15|EU AI Act|Providers must estim|EU|Not Baseline
+EU-003|Providers must estim|Article 9(2)(b)|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|EU AI Act|Providers must estim|EU|Not Baseline
+EU-004|Risk management meas|Article 9(4)|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Article 9(4)|0.10|EU AI Act|Risk management meas|EU|Not Baseline
+EU-004|Risk management meas|Article 9(4)|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|EU AI Act|Risk management meas|EU|Not Baseline
+EU-004|Risk management meas|Article 9(4)|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Article 9(4)|N/A|EU AI Act|Risk management meas|EU|Not Baseline
+EU-004|Risk management meas|Article 9(4)|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Article 9(4)|N/A|EU AI Act|Risk management meas|EU|Not Baseline
+EU-005|High-risk AI systems|Article 9(6)|Risk & Compliance|NO|Safety and Security |NO_METRIC|NO_FORMULA|Article 9(6)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-005|High-risk AI systems|Article 9(6)|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Article 9(6)|0.10|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-005|High-risk AI systems|Article 9(6)|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-005|High-risk AI systems|Article 9(6)|Risk & Compliance|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|Article 9(6)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-005|High-risk AI systems|Article 9(6)|Risk & Compliance|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|Article 9(6)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-006|Training, validation|Article 10(2)|Data Integration|YES|Data Quality|ai.data.bias_score|max(demographic_imba|Article 10(2)|N/A|EU AI Act|Training, validation|EU|Baseline
+EU-006|Training, validation|Article 10(2)|Data Integration|YES|Data Quality|ai.data.quality_scor|weighted_mean(comple|Article 10(2)|N/A|EU AI Act|Training, validation|EU|Baseline
+EU-006|Training, validation|Article 10(2)|Data Integration|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|Article 10(2)|N/A|EU AI Act|Training, validation|EU|Not Baseline
+EU-006|Training, validation|Article 10(2)|Data Integration|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Article 10(2)|N/A|EU AI Act|Training, validation|EU|Not Baseline
+EU-006|Training, validation|Article 10(2)|Data Integration|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Article 10(2)|N/A|EU AI Act|Training, validation|EU|Not Baseline
+EU-007|Training, validation|Article 10(3)|Data Integration|YES|Data Quality|ai.data.bias_score|max(demographic_imba|Article 10(3)|N/A|EU AI Act|Training, validation|EU|Baseline
+EU-007|Training, validation|Article 10(3)|Data Integration|YES|Data Quality|ai.data.quality_scor|weighted_mean(comple|Article 10(3)|N/A|EU AI Act|Training, validation|EU|Baseline
+EU-007|Training, validation|Article 10(3)|Data Integration|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Article 10(3)|N/A|EU AI Act|Training, validation|EU|Not Baseline
+EU-007|Training, validation|Article 10(3)|Data Integration|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Article 10(3)|N/A|EU AI Act|Training, validation|EU|Not Baseline
+EU-008|Training, validation|Article 10(4)|Risk & Compliance|YES|Data Quality|ai.data.bias_score|max(demographic_imba|Article 10(4)|N/A|EU AI Act|Training, validation|EU|Baseline
+EU-008|Training, validation|Article 10(4)|Risk & Compliance|YES|Data Quality|ai.data.quality_scor|weighted_mean(comple|Article 10(4)|N/A|EU AI Act|Training, validation|EU|Baseline
+EU-008|Training, validation|Article 10(4)|Risk & Compliance|NO|AI System Context an|NO_METRIC|NO_FORMULA|Article 10(4)|N/A|EU AI Act|Training, validation|EU|Baseline
+EU-009|To detect and correc|Article 10(5)|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Article 10(5)|N/A|EU AI Act|To detect and correc|EU|Not Baseline
+EU-009|To detect and correc|Article 10(5)|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Article 10(5)|N/A|EU AI Act|To detect and correc|EU|Not Baseline
+EU-009|To detect and correc|Article 10(5)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Article 10(5)|N/A|EU AI Act|To detect and correc|EU|Not Baseline
+EU-009|To detect and correc|Article 10(5)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Article 10(5)|N/A|EU AI Act|To detect and correc|EU|Not Baseline
+EU-009|To detect and correc|Article 10(5)|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|Article 10(5)|N/A|EU AI Act|To detect and correc|EU|Not Baseline
+EU-010|Providers shall draw|Article 11(1)|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|Article 11(1)|N/A|EU AI Act|Providers shall draw|EU|Not Baseline
+EU-010|Providers shall draw|Article 11(1)|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Article 11(1)|N/A|EU AI Act|Providers shall draw|EU|Not Baseline
+EU-011|Technical documentat|Article 11(1), Annex|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|Article 11(1), Annex|N/A|EU AI Act|Technical documentat|EU|Not Baseline
+EU-011|Technical documentat|Article 11(1), Annex|Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|Article 11(1), Annex|N/A|EU AI Act|Technical documentat|EU|Not Baseline
+EU-011|Technical documentat|Article 11(1), Annex|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Article 11(1), Annex|N/A|EU AI Act|Technical documentat|EU|Not Baseline
+EU-012|High-risk AI systems|Article 14(1)|Solution Design|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Article 14(1)|0.10|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-012|High-risk AI systems|Article 14(1)|Solution Design|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Article 14(1)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-013|Human oversight meas|Article 14(4)(a)|System Performance|YES|Performance Monitori|ai.model.accuracy|mean(accuracy scores|Article 14(4)(a)|N/A|EU AI Act|Human oversight meas|EU|Baseline
+EU-013|Human oversight meas|Article 14(4)(a)|System Performance|YES|Performance Monitori|ai.model.error_rate|(error_count / reque|Article 14(4)(a)|N/A|EU AI Act|Human oversight meas|EU|Baseline
+EU-013|Human oversight meas|Article 14(4)(a)|System Performance|YES|Performance Monitori|ai.model.hallucinati|(hallucinated_output|Article 14(4)(a)|N/A|EU AI Act|Human oversight meas|EU|Baseline
+EU-013|Human oversight meas|Article 14(4)(a)|System Performance|YES|Performance Monitori|ai.model.latency_p95|p95(response_time_ms|Article 14(4)(a)|N/A|EU AI Act|Human oversight meas|EU|Baseline
+EU-013|Human oversight meas|Article 14(4)(a)|System Performance|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Article 14(4)(a)|0.10|EU AI Act|Human oversight meas|EU|Not Baseline
+EU-013|Human oversight meas|Article 14(4)(a)|System Performance|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Article 14(4)(a)|N/A|EU AI Act|Human oversight meas|EU|Not Baseline
+EU-014|Human oversight meas|Article 14(4)(b)|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Article 14(4)(b)|90.0|EU AI Act|Human oversight meas|EU|Baseline
+EU-014|Human oversight meas|Article 14(4)(b)|Corporate Oversight|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Article 14(4)(b)|0.10|EU AI Act|Human oversight meas|EU|Not Baseline
+EU-014|Human oversight meas|Article 14(4)(b)|Corporate Oversight|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Article 14(4)(b)|N/A|EU AI Act|Human oversight meas|EU|Not Baseline
+EU-015|Human oversight pers|Article 14(4)(c)|Solution Design|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Article 14(4)(c)|0.10|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-015|Human oversight pers|Article 14(4)(c)|Solution Design|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Article 14(4)(c)|N/A|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-015|Human oversight pers|Article 14(4)(c)|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|Article 14(4)(c)|N/A|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-015|Human oversight pers|Article 14(4)(c)|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|Article 14(4)(c)|N/A|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-016|Human oversight pers|Article 14(4)(d)|Solution Design|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Article 14(4)(d)|0.10|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-016|Human oversight pers|Article 14(4)(d)|Solution Design|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Article 14(4)(d)|N/A|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-016|Human oversight pers|Article 14(4)(d)|Solution Design|NO|Adverse Decision App|ai.appeals.rate|(appeals_submitted /|Article 14(4)(d)|N/A|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-016|Human oversight pers|Article 14(4)(d)|Solution Design|NO|Adverse Decision App|ai.appeals.resolutio|mean(resolution_time|Article 14(4)(d)|N/A|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-017|Human oversight pers|Article 14(4)(e)|Solution Design|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Article 14(4)(e)|0.10|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-017|Human oversight pers|Article 14(4)(e)|Solution Design|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Article 14(4)(e)|N/A|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-017|Human oversight pers|Article 14(4)(e)|Solution Design|NO|Safety|NO_METRIC|NO_FORMULA|Article 14(4)(e)|N/A|EU AI Act|Human oversight pers|EU|Not Baseline
+EU-018|High-risk AI systems|Article 15(1)|Security|YES|Performance Monitori|ai.model.accuracy|mean(accuracy scores|Article 15(1)|N/A|EU AI Act|High-risk AI systems|EU|Baseline
+EU-018|High-risk AI systems|Article 15(1)|Security|YES|Performance Monitori|ai.model.error_rate|(error_count / reque|Article 15(1)|N/A|EU AI Act|High-risk AI systems|EU|Baseline
+EU-018|High-risk AI systems|Article 15(1)|Security|YES|Performance Monitori|ai.model.hallucinati|(hallucinated_output|Article 15(1)|N/A|EU AI Act|High-risk AI systems|EU|Baseline
+EU-018|High-risk AI systems|Article 15(1)|Security|YES|Performance Monitori|ai.model.latency_p95|p95(response_time_ms|Article 15(1)|N/A|EU AI Act|High-risk AI systems|EU|Baseline
+EU-018|High-risk AI systems|Article 15(1)|Security|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|Article 15(1)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-018|High-risk AI systems|Article 15(1)|Security|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|Article 15(1)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-018|High-risk AI systems|Article 15(1)|Security|NO|Security Governance|NO_METRIC|NO_FORMULA|Article 15(1)|N/A|EU AI Act|High-risk AI systems|EU|Baseline
+EU-019|High-risk AI systems|Article 15(3)|Security|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|Article 15(3)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-019|High-risk AI systems|Article 15(3)|Security|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|Article 15(3)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-019|High-risk AI systems|Article 15(3)|Security|NO|Software Security|ai.security.pentest_|days_since(last_pent|Article 15(3)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-019|High-risk AI systems|Article 15(3)|Security|NO|Software Security|ai.security.vuln_ope|count(vulnerabilitie|Article 15(3)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-020|Technical robustness|Article 15(5)|Security|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|Article 15(5)|N/A|EU AI Act|Technical robustness|EU|Not Baseline
+EU-020|Technical robustness|Article 15(5)|Security|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|Article 15(5)|N/A|EU AI Act|Technical robustness|EU|Not Baseline
+EU-020|Technical robustness|Article 15(5)|Security|NO|Software Security|ai.security.pentest_|days_since(last_pent|Article 15(5)|N/A|EU AI Act|Technical robustness|EU|Not Baseline
+EU-020|Technical robustness|Article 15(5)|Security|NO|Software Security|ai.security.vuln_ope|count(vulnerabilitie|Article 15(5)|N/A|EU AI Act|Technical robustness|EU|Not Baseline
+EU-020|Technical robustness|Article 15(5)|Security|NO|Data Security|ai.data.dlp_incident|count(dlp_incidents)|Article 15(5)|N/A|EU AI Act|Technical robustness|EU|Not Baseline
+EU-020|Technical robustness|Article 15(5)|Security|NO|Data Security|ai.data.encryption_c|(encrypted_datasets |Article 15(5)|N/A|EU AI Act|Technical robustness|EU|Not Baseline
+EU-021|Providers shall put |Article 17(1)|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|Article 17(1)|N/A|EU AI Act|Providers shall put |EU|Baseline
+EU-021|Providers shall put |Article 17(1)|Risk & Compliance|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Article 17(1)|N/A|EU AI Act|Providers shall put |EU|Not Baseline
+EU-021|Providers shall put |Article 17(1)|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|EU AI Act|Providers shall put |EU|Not Baseline
+EU-021|Providers shall put |Article 17(1)|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Article 17(1)|90.0|EU AI Act|Providers shall put |EU|Not Baseline
+EU-022|Providers shall keep|Article 19(1)|System Performance|NO|Event Logging|ai.logs.coverage_rat|(logged_events / tot|Article 19(1)|N/A|EU AI Act|Providers shall keep|EU|Not Baseline
+EU-022|Providers shall keep|Article 19(1)|System Performance|NO|Event Logging|ai.logs.retention_da|min(retention_days a|Article 19(1)|N/A|EU AI Act|Providers shall keep|EU|Not Baseline
+EU-022|Providers shall keep|Article 19(1)|System Performance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Article 19(1)|N/A|EU AI Act|Providers shall keep|EU|Not Baseline
+EU-023|Providers shall acti|Article 72(1)|System Performance|NO|Incident Reporting|NO_METRIC|NO_FORMULA|Article 72(1)|N/A|EU AI Act|Providers shall acti|EU|Not Baseline
+EU-023|Providers shall acti|Article 72(1)|System Performance|YES|Performance Monitori|ai.model.accuracy|mean(accuracy scores|Article 72(1)|N/A|EU AI Act|Providers shall acti|EU|Baseline
+EU-023|Providers shall acti|Article 72(1)|System Performance|YES|Performance Monitori|ai.model.error_rate|(error_count / reque|Article 72(1)|N/A|EU AI Act|Providers shall acti|EU|Baseline
+EU-023|Providers shall acti|Article 72(1)|System Performance|YES|Performance Monitori|ai.model.hallucinati|(hallucinated_output|Article 72(1)|N/A|EU AI Act|Providers shall acti|EU|Baseline
+EU-023|Providers shall acti|Article 72(1)|System Performance|YES|Performance Monitori|ai.model.latency_p95|p95(response_time_ms|Article 72(1)|N/A|EU AI Act|Providers shall acti|EU|Baseline
+EU-023|Providers shall acti|Article 72(1)|System Performance|NO|Post-Market Monitori|ai.monitoring.alert_|mean(time_from_alert|Article 72(1)|N/A|EU AI Act|Providers shall acti|EU|Not Baseline
+EU-023|Providers shall acti|Article 72(1)|System Performance|NO|Post-Market Monitori|ai.monitoring.covera|(monitored_endpoints|Article 72(1)|N/A|EU AI Act|Providers shall acti|EU|Not Baseline
+EU-024|High-risk AI systems|Article 15(4)|System Performance|NO|Change Management|NO_METRIC|NO_FORMULA|Article 15(4)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-024|High-risk AI systems|Article 15(4)|System Performance|NO|Continuous Improveme|NO_METRIC|NO_FORMULA|Article 15(4)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-024|High-risk AI systems|Article 15(4)|System Performance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Article 15(4)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-024|High-risk AI systems|Article 15(4)|System Performance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Article 15(4)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-025|High-risk AI systems|Article 13(1)|Solution Design|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Article 13(1)|90.0|EU AI Act|High-risk AI systems|EU|Baseline
+EU-025|High-risk AI systems|Article 13(1)|Solution Design|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|EU AI Act|High-risk AI systems|EU|Baseline
+EU-025|High-risk AI systems|Article 13(1)|Solution Design|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|Article 13(1)|80.0|EU AI Act|High-risk AI systems|EU|Baseline
+EU-025|High-risk AI systems|Article 13(1)|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|Article 13(1)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-025|High-risk AI systems|Article 13(1)|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|Article 13(1)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-026|High-risk AI systems|Article 13(3)|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Article 13(3)|90.0|EU AI Act|High-risk AI systems|EU|Baseline
+EU-026|High-risk AI systems|Article 13(3)|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|Article 13(3)|N/A|EU AI Act|High-risk AI systems|EU|Not Baseline
+EU-026|High-risk AI systems|Article 13(3)|Risk & Compliance|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|EU AI Act|High-risk AI systems|EU|Baseline
+EU-026|High-risk AI systems|Article 13(3)|Risk & Compliance|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|Article 13(3)|80.0|EU AI Act|High-risk AI systems|EU|Baseline
+EU-027|Deployers shall use |Article 26(1)|Risk & Compliance|NO|Lifecycle Management|NO_METRIC|NO_FORMULA|Article 26(1)|N/A|EU AI Act|Deployers shall use |EU|Not Baseline
+EU-027|Deployers shall use |Article 26(1)|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|EU AI Act|Deployers shall use |EU|Not Baseline
+EU-027|Deployers shall use |Article 26(1)|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Article 26(1)|90.0|EU AI Act|Deployers shall use |EU|Not Baseline
+EU-027|Deployers shall use |Article 26(1)|Risk & Compliance|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Article 26(1)|0.10|EU AI Act|Deployers shall use |EU|Not Baseline
+EU-027|Deployers shall use |Article 26(1)|Risk & Compliance|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Article 26(1)|N/A|EU AI Act|Deployers shall use |EU|Not Baseline
+EU-028|Deployers shall assi|Article 26(5)|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Article 26(5)|N/A|EU AI Act|Deployers shall assi|EU|Not Baseline
+EU-028|Deployers shall assi|Article 26(5)|Corporate Oversight|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Article 26(5)|0.10|EU AI Act|Deployers shall assi|EU|Not Baseline
+EU-028|Deployers shall assi|Article 26(5)|Corporate Oversight|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Article 26(5)|N/A|EU AI Act|Deployers shall assi|EU|Not Baseline
+EU-029|Deployers shall cond|Article 27(1)|Risk & Compliance|NO|Stakeholder Engageme|NO_METRIC|NO_FORMULA|Article 27(1)|N/A|EU AI Act|Deployers shall cond|EU|Not Baseline
+EU-029|Deployers shall cond|Article 27(1)|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Article 27(1)|0.15|EU AI Act|Deployers shall cond|EU|Not Baseline
+EU-029|Deployers shall cond|Article 27(1)|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|EU AI Act|Deployers shall cond|EU|Not Baseline
+EU-029|Deployers shall cond|Article 27(1)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Article 27(1)|N/A|EU AI Act|Deployers shall cond|EU|Not Baseline
+EU-029|Deployers shall cond|Article 27(1)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Article 27(1)|N/A|EU AI Act|Deployers shall cond|EU|Not Baseline
+EU-030|Providers shall regi|Article 49|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|EU AI Act|Providers shall regi|EU|Not Baseline
+EU-030|Providers shall regi|Article 49|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Article 49|90.0|EU AI Act|Providers shall regi|EU|Not Baseline
+EU-030|Providers shall regi|Article 49|Risk & Compliance|YES|Conformity Assessmen|ai.transparency.doc_|(completed_doc_secti|Article 49|80.0|EU AI Act|Providers shall regi|EU|Not Baseline
+EU-031|Providers of GPAI mo|Article 53(1)(a)|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|Article 53(1)(a)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-031|Providers of GPAI mo|Article 53(1)(a)|Risk & Compliance|NO|GPAI Model Governanc|NO_METRIC|NO_FORMULA|Article 53(1)(a)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-031|Providers of GPAI mo|Article 53(1)(a)|Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|Article 53(1)(a)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-031|Providers of GPAI mo|Article 53(1)(a)|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Article 53(1)(a)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-032|Providers of GPAI mo|Article 53(1)(b)|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Article 53(1)(b)|90.0|EU AI Act|Providers of GPAI mo|EU|Baseline
+EU-032|Providers of GPAI mo|Article 53(1)(b)|Risk & Compliance|NO|GPAI Model Governanc|NO_METRIC|NO_FORMULA|Article 53(1)(b)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-032|Providers of GPAI mo|Article 53(1)(b)|Risk & Compliance|NO|Third-Party Responsi|NO_METRIC|NO_FORMULA|Article 53(1)(b)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-033|Providers of GPAI mo|Article 53(1)(c)|Risk & Compliance|NO|GPAI Model Governanc|NO_METRIC|NO_FORMULA|Article 53(1)(c)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-033|Providers of GPAI mo|Article 53(1)(c)|Risk & Compliance|NO|Privacy Compliance|NO_METRIC|NO_FORMULA|Article 53(1)(c)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-033|Providers of GPAI mo|Article 53(1)(c)|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-033|Providers of GPAI mo|Article 53(1)(c)|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Article 53(1)(c)|90.0|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-034|Providers of GPAI mo|Article 53(1)(d)|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Article 53(1)(d)|90.0|EU AI Act|Providers of GPAI mo|EU|Baseline
+EU-034|Providers of GPAI mo|Article 53(1)(d)|Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|Article 53(1)(d)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-034|Providers of GPAI mo|Article 53(1)(d)|Risk & Compliance|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|EU AI Act|Providers of GPAI mo|EU|Baseline
+EU-034|Providers of GPAI mo|Article 53(1)(d)|Risk & Compliance|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|Article 53(1)(d)|80.0|EU AI Act|Providers of GPAI mo|EU|Baseline
+EU-035|Providers of GPAI mo|Article 55(1)(a)|Risk & Compliance|NO|Safety and Security |NO_METRIC|NO_FORMULA|Article 55(1)(a)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-035|Providers of GPAI mo|Article 55(1)(a)|Risk & Compliance|NO|Independent Catastro|NO_METRIC|NO_FORMULA|Article 55(1)(a)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-035|Providers of GPAI mo|Article 55(1)(a)|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Article 55(1)(a)|0.05|EU AI Act|Providers of GPAI mo|EU|Baseline
+EU-035|Providers of GPAI mo|Article 55(1)(a)|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|EU AI Act|Providers of GPAI mo|EU|Baseline
+EU-035|Providers of GPAI mo|Article 55(1)(a)|Risk & Compliance|NO|Catastrophic Harm As|NO_METRIC|NO_FORMULA|Article 55(1)(a)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-036|Providers of GPAI mo|Article 55(1)(b)|Risk & Compliance|NO|Independent Catastro|NO_METRIC|NO_FORMULA|Article 55(1)(b)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-036|Providers of GPAI mo|Article 55(1)(b)|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Article 55(1)(b)|0.10|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-036|Providers of GPAI mo|Article 55(1)(b)|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-036|Providers of GPAI mo|Article 55(1)(b)|Risk & Compliance|NO|Catastrophic Harm As|NO_METRIC|NO_FORMULA|Article 55(1)(b)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-037|Providers of GPAI mo|Article 55(1)(c)|System Performance|NO|Incident Reporting|NO_METRIC|NO_FORMULA|Article 55(1)(c)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-037|Providers of GPAI mo|Article 55(1)(c)|System Performance|NO|Regulatory Safety In|NO_METRIC|NO_FORMULA|Article 55(1)(c)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-037|Providers of GPAI mo|Article 55(1)(c)|System Performance|NO|Event Logging|ai.logs.coverage_rat|(logged_events / tot|Article 55(1)(c)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-037|Providers of GPAI mo|Article 55(1)(c)|System Performance|NO|Event Logging|ai.logs.retention_da|min(retention_days a|Article 55(1)(c)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-037|Providers of GPAI mo|Article 55(1)(c)|System Performance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Article 55(1)(c)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-038|Providers of GPAI mo|Article 55(1)(d)|Security|NO|Security Governance|NO_METRIC|NO_FORMULA|Article 55(1)(d)|N/A|EU AI Act|Providers of GPAI mo|EU|Baseline
+EU-038|Providers of GPAI mo|Article 55(1)(d)|Security|NO|Software Security|ai.security.pentest_|days_since(last_pent|Article 55(1)(d)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-038|Providers of GPAI mo|Article 55(1)(d)|Security|NO|Software Security|ai.security.vuln_ope|count(vulnerabilitie|Article 55(1)(d)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-038|Providers of GPAI mo|Article 55(1)(d)|Security|NO|Data Security|ai.data.dlp_incident|count(dlp_incidents)|Article 55(1)(d)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-038|Providers of GPAI mo|Article 55(1)(d)|Security|NO|Data Security|ai.data.encryption_c|(encrypted_datasets |Article 55(1)(d)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-038|Providers of GPAI mo|Article 55(1)(d)|Security|NO|Physical Security|NO_METRIC|NO_FORMULA|Article 55(1)(d)|N/A|EU AI Act|Providers of GPAI mo|EU|Not Baseline
+EU-039|AI systems deploying|Article 5(1)(a)|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Article 5(1)(a)|90.0|EU AI Act|AI systems deploying|EU|Baseline
+EU-039|AI systems deploying|Article 5(1)(a)|Corporate Oversight|NO|Safety|NO_METRIC|NO_FORMULA|Article 5(1)(a)|N/A|EU AI Act|AI systems deploying|EU|Not Baseline
+EU-039|AI systems deploying|Article 5(1)(a)|Corporate Oversight|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Article 5(1)(a)|N/A|EU AI Act|AI systems deploying|EU|Not Baseline
+EU-039|AI systems deploying|Article 5(1)(a)|Corporate Oversight|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Article 5(1)(a)|N/A|EU AI Act|AI systems deploying|EU|Not Baseline
+EU-040|AI systems that expl|Article 5(1)(b)|Solution Design|NO|Safety|NO_METRIC|NO_FORMULA|Article 5(1)(b)|N/A|EU AI Act|AI systems that expl|EU|Not Baseline
+EU-040|AI systems that expl|Article 5(1)(b)|Solution Design|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Article 5(1)(b)|N/A|EU AI Act|AI systems that expl|EU|Not Baseline
+EU-040|AI systems that expl|Article 5(1)(b)|Solution Design|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Article 5(1)(b)|N/A|EU AI Act|AI systems that expl|EU|Not Baseline
+EU-041|Real-time remote bio|Article 5(1)(h)|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Article 5(1)(h)|N/A|EU AI Act|Real-time remote bio|EU|Not Baseline
+EU-041|Real-time remote bio|Article 5(1)(h)|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Article 5(1)(h)|N/A|EU AI Act|Real-time remote bio|EU|Not Baseline
+EU-041|Real-time remote bio|Article 5(1)(h)|Risk & Compliance|NO|Safety|NO_METRIC|NO_FORMULA|Article 5(1)(h)|N/A|EU AI Act|Real-time remote bio|EU|Not Baseline
+EU-041|Real-time remote bio|Article 5(1)(h)|Risk & Compliance|NO|Identity and Access|ai.access.failed_aut|failed_auth_events /|Article 5(1)(h)|N/A|EU AI Act|Real-time remote bio|EU|Not Baseline
+EU-041|Real-time remote bio|Article 5(1)(h)|Risk & Compliance|NO|Identity and Access|ai.access.mfa_covera|(mfa_enabled_users /|Article 5(1)(h)|N/A|EU AI Act|Real-time remote bio|EU|Not Baseline
+EU-041|Real-time remote bio|Article 5(1)(h)|Risk & Compliance|NO|Identity and Access|ai.access.privileged|(reviewed_accounts /|Article 5(1)(h)|N/A|EU AI Act|Real-time remote bio|EU|Not Baseline
+EU-042|Providers and deploy|Article 50(1)|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Article 50(1)|90.0|EU AI Act|Providers and deploy|EU|Baseline
+EU-042|Providers and deploy|Article 50(1)|Corporate Oversight|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|Article 50(1)|N/A|EU AI Act|Providers and deploy|EU|Not Baseline
+EU-042|Providers and deploy|Article 50(1)|Corporate Oversight|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|EU AI Act|Providers and deploy|EU|Baseline
+EU-042|Providers and deploy|Article 50(1)|Corporate Oversight|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|Article 50(1)|80.0|EU AI Act|Providers and deploy|EU|Baseline
+EU-043|Providers of AI syst|Article 50(2)|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Article 50(2)|90.0|EU AI Act|Providers of AI syst|EU|Baseline
+EU-043|Providers of AI syst|Article 50(2)|Corporate Oversight|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|EU AI Act|Providers of AI syst|EU|Baseline
+EU-043|Providers of AI syst|Article 50(2)|Corporate Oversight|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|Article 50(2)|80.0|EU AI Act|Providers of AI syst|EU|Baseline
+IL-001|Employers using AI t|AI Video Interview A|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|AI Video Interview A|90.0|Illinois AI Laws|Employers using AI t|US-IL|Baseline
+IL-001|Employers using AI t|AI Video Interview A|Risk & Compliance|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|AI Video Interview A|N/A|Illinois AI Laws|Employers using AI t|US-IL|Not Baseline
+IL-001|Employers using AI t|AI Video Interview A|Risk & Compliance|NO|Privacy by Design|NO_METRIC|NO_FORMULA|AI Video Interview A|N/A|Illinois AI Laws|Employers using AI t|US-IL|Not Baseline
+IL-001|Employers using AI t|AI Video Interview A|Risk & Compliance|NO|Adverse Decision App|ai.appeals.rate|(appeals_submitted /|AI Video Interview A|N/A|Illinois AI Laws|Employers using AI t|US-IL|Not Baseline
+IL-001|Employers using AI t|AI Video Interview A|Risk & Compliance|NO|Adverse Decision App|ai.appeals.resolutio|mean(resolution_time|AI Video Interview A|N/A|Illinois AI Laws|Employers using AI t|US-IL|Not Baseline
+IL-002|Employers shall not |AI Video Interview A|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|AI Video Interview A|N/A|Illinois AI Laws|Employers shall not |US-IL|Not Baseline
+IL-002|Employers shall not |AI Video Interview A|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|AI Video Interview A|N/A|Illinois AI Laws|Employers shall not |US-IL|Not Baseline
+IL-002|Employers shall not |AI Video Interview A|Risk & Compliance|NO|Privacy Compliance|NO_METRIC|NO_FORMULA|AI Video Interview A|N/A|Illinois AI Laws|Employers shall not |US-IL|Not Baseline
+IL-002|Employers shall not |AI Video Interview A|Risk & Compliance|NO|Data Security|ai.data.dlp_incident|count(dlp_incidents)|AI Video Interview A|N/A|Illinois AI Laws|Employers shall not |US-IL|Not Baseline
+IL-002|Employers shall not |AI Video Interview A|Risk & Compliance|NO|Data Security|ai.data.encryption_c|(encrypted_datasets |AI Video Interview A|N/A|Illinois AI Laws|Employers shall not |US-IL|Not Baseline
+IL-002|Employers shall not |AI Video Interview A|Risk & Compliance|NO|Third-Party Responsi|NO_METRIC|NO_FORMULA|AI Video Interview A|N/A|Illinois AI Laws|Employers shall not |US-IL|Not Baseline
+IL-003|No private entity ma|BIPA §15(b)|Risk & Compliance|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|BIPA §15(b)|N/A|Illinois AI Laws|No private entity ma|US-IL|Not Baseline
+IL-003|No private entity ma|BIPA §15(b)|Risk & Compliance|NO|Privacy by Design|NO_METRIC|NO_FORMULA|BIPA §15(b)|N/A|Illinois AI Laws|No private entity ma|US-IL|Not Baseline
+IL-003|No private entity ma|BIPA §15(b)|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|BIPA §15(b)|N/A|Illinois AI Laws|No private entity ma|US-IL|Not Baseline
+IL-003|No private entity ma|BIPA §15(b)|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|BIPA §15(b)|N/A|Illinois AI Laws|No private entity ma|US-IL|Not Baseline
+ISO-001|The organisation sha|Clause 4.4|Risk & Compliance|NO|Executive Commitment|NO_METRIC|NO_FORMULA|Clause 4.4|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-001|The organisation sha|Clause 4.4|Risk & Compliance|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Clause 4.4|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-001|The organisation sha|Clause 4.4|Risk & Compliance|NO|Lifecycle Management|NO_METRIC|NO_FORMULA|Clause 4.4|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-001|The organisation sha|Clause 4.4|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|Clause 4.4|80.0|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-002|Top management shall|Clause 5.1|Corporate Oversight|NO|Executive Commitment|NO_METRIC|NO_FORMULA|Clause 5.1|N/A|ISO/IEC 42001|Top management shall|Worldwide|Baseline
+ISO-002|Top management shall|Clause 5.1|Corporate Oversight|NO|Strategic Alignment|NO_METRIC|NO_FORMULA|Clause 5.1|N/A|ISO/IEC 42001|Top management shall|Worldwide|Not Baseline
+ISO-003|The organisation sha|Clause 5.2|Risk & Compliance|NO|Executive Commitment|NO_METRIC|NO_FORMULA|Clause 5.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-003|The organisation sha|Clause 5.2|Risk & Compliance|NO|Strategic Alignment|NO_METRIC|NO_FORMULA|Clause 5.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-003|The organisation sha|Clause 5.2|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-003|The organisation sha|Clause 5.2|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Clause 5.2|90.0|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-004|Responsibilities and|Clause 5.3|Risk & Compliance|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Clause 5.3|N/A|ISO/IEC 42001|Responsibilities and|Worldwide|Not Baseline
+ISO-004|Responsibilities and|Clause 5.3|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|Clause 5.3|80.0|ISO/IEC 42001|Responsibilities and|Worldwide|Baseline
+ISO-005|The organisation sha|Clause 6.1.1|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|Clause 6.1.1|80.0|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-005|The organisation sha|Clause 6.1.1|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Clause 6.1.1|0.05|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-005|The organisation sha|Clause 6.1.1|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-005|The organisation sha|Clause 6.1.1|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Clause 6.1.1|0.15|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-005|The organisation sha|Clause 6.1.1|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-006|The organisation sha|Clause 6.1.2|Risk & Compliance|NO|Stakeholder Engageme|NO_METRIC|NO_FORMULA|Clause 6.1.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-006|The organisation sha|Clause 6.1.2|Risk & Compliance|NO|AI System Context an|NO_METRIC|NO_FORMULA|Clause 6.1.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-006|The organisation sha|Clause 6.1.2|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Clause 6.1.2|0.15|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-006|The organisation sha|Clause 6.1.2|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-007|Documented informati|Clause 6.1.3|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|Clause 6.1.3|N/A|ISO/IEC 42001|Documented informati|Worldwide|Not Baseline
+ISO-007|Documented informati|Clause 6.1.3|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Clause 6.1.3|0.10|ISO/IEC 42001|Documented informati|Worldwide|Not Baseline
+ISO-007|Documented informati|Clause 6.1.3|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|ISO/IEC 42001|Documented informati|Worldwide|Not Baseline
+ISO-007|Documented informati|Clause 6.1.3|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Clause 6.1.3|N/A|ISO/IEC 42001|Documented informati|Worldwide|Not Baseline
+ISO-008|The organisation sha|Clause 6.2|Risk & Compliance|NO|Strategic Alignment|NO_METRIC|NO_FORMULA|Clause 6.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-008|The organisation sha|Clause 6.2|Risk & Compliance|NO|Continuous Improveme|NO_METRIC|NO_FORMULA|Clause 6.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-008|The organisation sha|Clause 6.2|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|Clause 6.2|80.0|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-009|The organisation sha|Clause 7.1|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Clause 7.1|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-009|The organisation sha|Clause 7.1|Corporate Oversight|YES|Resource Management|ai.resources.compute|sum(compute_costs) f|Clause 7.1|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-009|The organisation sha|Clause 7.1|Corporate Oversight|YES|Resource Management|ai.resources.token_u|sum(prompt_tokens + |Clause 7.1|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-010|Persons doing work u|Clause 7.2|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Clause 7.2|N/A|ISO/IEC 42001|Persons doing work u|Worldwide|Not Baseline
+ISO-010|Persons doing work u|Clause 7.2|Corporate Oversight|YES|Resource Management|ai.resources.compute|sum(compute_costs) f|Clause 7.2|N/A|ISO/IEC 42001|Persons doing work u|Worldwide|Not Baseline
+ISO-010|Persons doing work u|Clause 7.2|Corporate Oversight|YES|Resource Management|ai.resources.token_u|sum(prompt_tokens + |Clause 7.2|N/A|ISO/IEC 42001|Persons doing work u|Worldwide|Not Baseline
+ISO-011|Documented informati|Clause 7.2(d)|Risk & Compliance|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Clause 7.2(d)|N/A|ISO/IEC 42001|Documented informati|Worldwide|Not Baseline
+ISO-011|Documented informati|Clause 7.2(d)|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|Clause 7.2(d)|N/A|ISO/IEC 42001|Documented informati|Worldwide|Not Baseline
+ISO-011|Documented informati|Clause 7.2(d)|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Clause 7.2(d)|N/A|ISO/IEC 42001|Documented informati|Worldwide|Not Baseline
+ISO-012|Internal audits shal|Clause 9.2|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|Clause 9.2|N/A|ISO/IEC 42001|Internal audits shal|Worldwide|Baseline
+ISO-012|Internal audits shal|Clause 9.2|Risk & Compliance|NO|Continuous Improveme|NO_METRIC|NO_FORMULA|Clause 9.2|N/A|ISO/IEC 42001|Internal audits shal|Worldwide|Not Baseline
+ISO-012|Internal audits shal|Clause 9.2|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|Clause 9.2|N/A|ISO/IEC 42001|Internal audits shal|Worldwide|Not Baseline
+ISO-013|Top management shall|Clause 9.3|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|Clause 9.3|N/A|ISO/IEC 42001|Top management shall|Worldwide|Baseline
+ISO-013|Top management shall|Clause 9.3|Risk & Compliance|NO|Executive Commitment|NO_METRIC|NO_FORMULA|Clause 9.3|N/A|ISO/IEC 42001|Top management shall|Worldwide|Baseline
+ISO-013|Top management shall|Clause 9.3|Risk & Compliance|NO|Continuous Improveme|NO_METRIC|NO_FORMULA|Clause 9.3|N/A|ISO/IEC 42001|Top management shall|Worldwide|Not Baseline
+ISO-014|The organisation sha|Clause 10.2|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|Clause 10.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Baseline
+ISO-014|The organisation sha|Clause 10.2|Risk & Compliance|NO|Change Management|NO_METRIC|NO_FORMULA|Clause 10.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-014|The organisation sha|Clause 10.2|Risk & Compliance|NO|Continuous Improveme|NO_METRIC|NO_FORMULA|Clause 10.2|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-015|The organisation sha|Annex A 6.1.5|Risk & Compliance|NO|Privacy Compliance|NO_METRIC|NO_FORMULA|Annex A 6.1.5|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-015|The organisation sha|Annex A 6.1.5|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-015|The organisation sha|Annex A 6.1.5|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Annex A 6.1.5|90.0|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-015|The organisation sha|Annex A 6.1.5|Risk & Compliance|YES|Conformity Assessmen|ai.transparency.doc_|(completed_doc_secti|Annex A 6.1.5|80.0|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-015|The organisation sha|Annex A 6.1.5|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|Annex A 6.1.5|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-015|The organisation sha|Annex A 6.1.5|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|Annex A 6.1.5|N/A|ISO/IEC 42001|The organisation sha|Worldwide|Not Baseline
+ISO-016|Processes for transp|Annex A 6.2.2|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Annex A 6.2.2|90.0|ISO/IEC 42001|Processes for transp|Worldwide|Baseline
+ISO-016|Processes for transp|Annex A 6.2.2|Risk & Compliance|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|ISO/IEC 42001|Processes for transp|Worldwide|Baseline
+ISO-016|Processes for transp|Annex A 6.2.2|Risk & Compliance|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|Annex A 6.2.2|80.0|ISO/IEC 42001|Processes for transp|Worldwide|Baseline
+ISO-016|Processes for transp|Annex A 6.2.2|Risk & Compliance|NO|Explainability|ai.explain.coverage_|(explained_outputs /|Annex A 6.2.2|N/A|ISO/IEC 42001|Processes for transp|Worldwide|Not Baseline
+ISO-016|Processes for transp|Annex A 6.2.2|Risk & Compliance|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|Annex A 6.2.2|N/A|ISO/IEC 42001|Processes for transp|Worldwide|Not Baseline
+ISO-017|Data governance proc|Annex A 6.2.4|Risk & Compliance|YES|Data Quality|ai.data.bias_score|max(demographic_imba|Annex A 6.2.4|N/A|ISO/IEC 42001|Data governance proc|Worldwide|Baseline
+ISO-017|Data governance proc|Annex A 6.2.4|Risk & Compliance|YES|Data Quality|ai.data.quality_scor|weighted_mean(comple|Annex A 6.2.4|N/A|ISO/IEC 42001|Data governance proc|Worldwide|Baseline
+ISO-017|Data governance proc|Annex A 6.2.4|Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|Annex A 6.2.4|N/A|ISO/IEC 42001|Data governance proc|Worldwide|Not Baseline
+ISO-017|Data governance proc|Annex A 6.2.4|Risk & Compliance|NO|Privacy by Design|NO_METRIC|NO_FORMULA|Annex A 6.2.4|N/A|ISO/IEC 42001|Data governance proc|Worldwide|Not Baseline
+ISO-017|Data governance proc|Annex A 6.2.4|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Annex A 6.2.4|N/A|ISO/IEC 42001|Data governance proc|Worldwide|Not Baseline
+ISO-017|Data governance proc|Annex A 6.2.4|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Annex A 6.2.4|N/A|ISO/IEC 42001|Data governance proc|Worldwide|Not Baseline
+ISO-018|Human oversight mech|Annex A 6.2.5|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Annex A 6.2.5|N/A|ISO/IEC 42001|Human oversight mech|Worldwide|Not Baseline
+ISO-018|Human oversight mech|Annex A 6.2.5|Corporate Oversight|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Annex A 6.2.5|0.10|ISO/IEC 42001|Human oversight mech|Worldwide|Not Baseline
+ISO-018|Human oversight mech|Annex A 6.2.5|Corporate Oversight|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Annex A 6.2.5|N/A|ISO/IEC 42001|Human oversight mech|Worldwide|Not Baseline
+ISO-019|Safety controls for |Annex A 6.2.6|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Annex A 6.2.6|0.10|ISO/IEC 42001|Safety controls for |Worldwide|Not Baseline
+ISO-019|Safety controls for |Annex A 6.2.6|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|ISO/IEC 42001|Safety controls for |Worldwide|Not Baseline
+ISO-019|Safety controls for |Annex A 6.2.6|Risk & Compliance|NO|Safety|NO_METRIC|NO_FORMULA|Annex A 6.2.6|N/A|ISO/IEC 42001|Safety controls for |Worldwide|Not Baseline
+ISO-019|Safety controls for |Annex A 6.2.6|Risk & Compliance|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|Annex A 6.2.6|N/A|ISO/IEC 42001|Safety controls for |Worldwide|Not Baseline
+ISO-019|Safety controls for |Annex A 6.2.6|Risk & Compliance|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|Annex A 6.2.6|N/A|ISO/IEC 42001|Safety controls for |Worldwide|Not Baseline
+ISO-020|Mechanisms to preven|Annex A 6.2.7|Security|NO|Incident Detection|ai.incident.detectio|(detected_incidents |Annex A 6.2.7|N/A|ISO/IEC 42001|Mechanisms to preven|Worldwide|Not Baseline
+ISO-020|Mechanisms to preven|Annex A 6.2.7|Security|NO|Incident Detection|ai.incident.mttd|mean(time_from_incid|Annex A 6.2.7|N/A|ISO/IEC 42001|Mechanisms to preven|Worldwide|Not Baseline
+ISO-020|Mechanisms to preven|Annex A 6.2.7|Security|NO|Security Governance|NO_METRIC|NO_FORMULA|Annex A 6.2.7|N/A|ISO/IEC 42001|Mechanisms to preven|Worldwide|Baseline
+ISO-020|Mechanisms to preven|Annex A 6.2.7|Security|NO|Software Security|ai.security.pentest_|days_since(last_pent|Annex A 6.2.7|N/A|ISO/IEC 42001|Mechanisms to preven|Worldwide|Not Baseline
+ISO-020|Mechanisms to preven|Annex A 6.2.7|Security|NO|Software Security|ai.security.vuln_ope|count(vulnerabilitie|Annex A 6.2.7|N/A|ISO/IEC 42001|Mechanisms to preven|Worldwide|Not Baseline
+ISO-020|Mechanisms to preven|Annex A 6.2.7|Security|NO|Data Security|ai.data.dlp_incident|count(dlp_incidents)|Annex A 6.2.7|N/A|ISO/IEC 42001|Mechanisms to preven|Worldwide|Not Baseline
+ISO-020|Mechanisms to preven|Annex A 6.2.7|Security|NO|Data Security|ai.data.encryption_c|(encrypted_datasets |Annex A 6.2.7|N/A|ISO/IEC 42001|Mechanisms to preven|Worldwide|Not Baseline
+NIST-001|Organizations shall |GOVERN 1.1|Risk & Compliance|NO|Executive Commitment|NO_METRIC|NO_FORMULA|GOVERN 1.1|N/A|NIST AI RMF|Organizations shall |Worldwide|Baseline
+NIST-001|Organizations shall |GOVERN 1.1|Risk & Compliance|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|GOVERN 1.1|N/A|NIST AI RMF|Organizations shall |Worldwide|Not Baseline
+NIST-001|Organizations shall |GOVERN 1.1|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|GOVERN 1.1|80.0|NIST AI RMF|Organizations shall |Worldwide|Baseline
+NIST-001|Organizations shall |GOVERN 1.1|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|NIST AI RMF|Organizations shall |Worldwide|Not Baseline
+NIST-001|Organizations shall |GOVERN 1.1|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|GOVERN 1.1|90.0|NIST AI RMF|Organizations shall |Worldwide|Not Baseline
+NIST-002|Organizational teams|GOVERN 1.2|Corporate Oversight|NO|Stakeholder Engageme|NO_METRIC|NO_FORMULA|GOVERN 1.2|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-002|Organizational teams|GOVERN 1.2|Corporate Oversight|NO|Executive Commitment|NO_METRIC|NO_FORMULA|GOVERN 1.2|N/A|NIST AI RMF|Organizational teams|Worldwide|Baseline
+NIST-002|Organizational teams|GOVERN 1.2|Corporate Oversight|NO|Strategic Alignment|NO_METRIC|NO_FORMULA|GOVERN 1.2|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-003|Organizational leade|GOVERN 1.3|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|GOVERN 1.3|N/A|NIST AI RMF|Organizational leade|Worldwide|Baseline
+NIST-003|Organizational leade|GOVERN 1.3|Risk & Compliance|NO|Executive Commitment|NO_METRIC|NO_FORMULA|GOVERN 1.3|N/A|NIST AI RMF|Organizational leade|Worldwide|Baseline
+NIST-003|Organizational leade|GOVERN 1.3|Risk & Compliance|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|GOVERN 1.3|N/A|NIST AI RMF|Organizational leade|Worldwide|Not Baseline
+NIST-004|Organizational teams|GOVERN 1.4|Risk & Compliance|NO|Strategic Alignment|NO_METRIC|NO_FORMULA|GOVERN 1.4|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-004|Organizational teams|GOVERN 1.4|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|GOVERN 1.4|80.0|NIST AI RMF|Organizational teams|Worldwide|Baseline
+NIST-004|Organizational teams|GOVERN 1.4|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|GOVERN 1.4|0.05|NIST AI RMF|Organizational teams|Worldwide|Baseline
+NIST-004|Organizational teams|GOVERN 1.4|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST AI RMF|Organizational teams|Worldwide|Baseline
+NIST-005|Organizational polic|GOVERN 1.5|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|GOVERN 1.5|N/A|NIST AI RMF|Organizational polic|Worldwide|Baseline
+NIST-005|Organizational polic|GOVERN 1.5|Risk & Compliance|NO|Executive Commitment|NO_METRIC|NO_FORMULA|GOVERN 1.5|N/A|NIST AI RMF|Organizational polic|Worldwide|Baseline
+NIST-005|Organizational polic|GOVERN 1.5|Risk & Compliance|NO|Safety|NO_METRIC|NO_FORMULA|GOVERN 1.5|N/A|NIST AI RMF|Organizational polic|Worldwide|Not Baseline
+NIST-006|Policies and procedu|GOVERN 1.6|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|GOVERN 1.6|0.05|NIST AI RMF|Policies and procedu|Worldwide|Baseline
+NIST-006|Policies and procedu|GOVERN 1.6|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST AI RMF|Policies and procedu|Worldwide|Baseline
+NIST-006|Policies and procedu|GOVERN 1.6|Risk & Compliance|NO|Third-Party Responsi|NO_METRIC|NO_FORMULA|GOVERN 1.6|N/A|NIST AI RMF|Policies and procedu|Worldwide|Not Baseline
+NIST-006|Policies and procedu|GOVERN 1.6|Risk & Compliance|NO|Supplier Risk|NO_METRIC|NO_FORMULA|GOVERN 1.6|N/A|NIST AI RMF|Policies and procedu|Worldwide|Not Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|NO|Incident Detection|ai.incident.detectio|(detected_incidents |GOVERN 1.7|N/A|NIST AI RMF|Processes and proced|Worldwide|Not Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|NO|Incident Detection|ai.incident.mttd|mean(time_from_incid|GOVERN 1.7|N/A|NIST AI RMF|Processes and proced|Worldwide|Not Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|YES|Performance Monitori|ai.model.accuracy|mean(accuracy scores|GOVERN 1.7|N/A|NIST AI RMF|Processes and proced|Worldwide|Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|YES|Performance Monitori|ai.model.error_rate|(error_count / reque|GOVERN 1.7|N/A|NIST AI RMF|Processes and proced|Worldwide|Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|YES|Performance Monitori|ai.model.hallucinati|(hallucinated_output|GOVERN 1.7|N/A|NIST AI RMF|Processes and proced|Worldwide|Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|YES|Performance Monitori|ai.model.latency_p95|p95(response_time_ms|GOVERN 1.7|N/A|NIST AI RMF|Processes and proced|Worldwide|Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|GOVERN 1.7|0.05|NIST AI RMF|Processes and proced|Worldwide|Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST AI RMF|Processes and proced|Worldwide|Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|GOVERN 1.7|N/A|NIST AI RMF|Processes and proced|Worldwide|Not Baseline
+NIST-007|Processes and proced|GOVERN 1.7|System Performance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|GOVERN 1.7|N/A|NIST AI RMF|Processes and proced|Worldwide|Not Baseline
+NIST-008|AI risk management s|GOVERN 2.1|Risk & Compliance|NO|Strategic Alignment|NO_METRIC|NO_FORMULA|GOVERN 2.1|N/A|NIST AI RMF|AI risk management s|Worldwide|Not Baseline
+NIST-008|AI risk management s|GOVERN 2.1|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|GOVERN 2.1|80.0|NIST AI RMF|AI risk management s|Worldwide|Baseline
+NIST-008|AI risk management s|GOVERN 2.1|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|NIST AI RMF|AI risk management s|Worldwide|Not Baseline
+NIST-008|AI risk management s|GOVERN 2.1|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|GOVERN 2.1|90.0|NIST AI RMF|AI risk management s|Worldwide|Not Baseline
+NIST-009|The risk tolerance o|GOVERN 2.2|Risk & Compliance|NO|Strategic Alignment|NO_METRIC|NO_FORMULA|GOVERN 2.2|N/A|NIST AI RMF|The risk tolerance o|Worldwide|Not Baseline
+NIST-009|The risk tolerance o|GOVERN 2.2|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|GOVERN 2.2|80.0|NIST AI RMF|The risk tolerance o|Worldwide|Baseline
+NIST-009|The risk tolerance o|GOVERN 2.2|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|GOVERN 2.2|N/A|NIST AI RMF|The risk tolerance o|Worldwide|Not Baseline
+NIST-009|The risk tolerance o|GOVERN 2.2|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|GOVERN 2.2|N/A|NIST AI RMF|The risk tolerance o|Worldwide|Not Baseline
+NIST-010|Organizational teams|GOVERN 2.4|Corporate Oversight|NO|Stakeholder Engageme|NO_METRIC|NO_FORMULA|GOVERN 2.4|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-010|Organizational teams|GOVERN 2.4|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|GOVERN 2.4|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-010|Organizational teams|GOVERN 2.4|Corporate Oversight|NO|AI Safety Whistleblo|NO_METRIC|NO_FORMULA|GOVERN 2.4|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-011|Policies shall addre|GOVERN 3.1|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|GOVERN 3.1|N/A|NIST AI RMF|Policies shall addre|Worldwide|Not Baseline
+NIST-011|Policies shall addre|GOVERN 3.1|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|GOVERN 3.1|N/A|NIST AI RMF|Policies shall addre|Worldwide|Not Baseline
+NIST-011|Policies shall addre|GOVERN 3.1|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|NIST AI RMF|Policies shall addre|Worldwide|Not Baseline
+NIST-011|Policies shall addre|GOVERN 3.1|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|GOVERN 3.1|90.0|NIST AI RMF|Policies shall addre|Worldwide|Not Baseline
+NIST-011|Policies shall addre|GOVERN 3.1|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|GOVERN 3.1|N/A|NIST AI RMF|Policies shall addre|Worldwide|Not Baseline
+NIST-011|Policies shall addre|GOVERN 3.1|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|GOVERN 3.1|N/A|NIST AI RMF|Policies shall addre|Worldwide|Not Baseline
+NIST-011|Policies shall addre|GOVERN 3.1|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|GOVERN 3.1|N/A|NIST AI RMF|Policies shall addre|Worldwide|Not Baseline
+NIST-012|Roles, responsibilit|GOVERN 4.1|Risk & Compliance|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|GOVERN 4.1|N/A|NIST AI RMF|Roles, responsibilit|Worldwide|Not Baseline
+NIST-012|Roles, responsibilit|GOVERN 4.1|Risk & Compliance|YES|Risk Framework|ai.transparency.doc_|(completed_doc_secti|GOVERN 4.1|80.0|NIST AI RMF|Roles, responsibilit|Worldwide|Baseline
+NIST-012|Roles, responsibilit|GOVERN 4.1|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|GOVERN 4.1|N/A|NIST AI RMF|Roles, responsibilit|Worldwide|Not Baseline
+NIST-013|Organizational teams|GOVERN 4.2|Corporate Oversight|NO|Stakeholder Engageme|NO_METRIC|NO_FORMULA|GOVERN 4.2|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-013|Organizational teams|GOVERN 4.2|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|GOVERN 4.2|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-013|Organizational teams|GOVERN 4.2|Corporate Oversight|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|GOVERN 4.2|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-013|Organizational teams|GOVERN 4.2|Corporate Oversight|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|GOVERN 4.2|N/A|NIST AI RMF|Organizational teams|Worldwide|Not Baseline
+NIST-014|Organizational polic|GOVERN 5.1|Risk & Compliance|NO|Incident Detection|ai.incident.detectio|(detected_incidents |GOVERN 5.1|N/A|NIST AI RMF|Organizational polic|Worldwide|Not Baseline
+NIST-014|Organizational polic|GOVERN 5.1|Risk & Compliance|NO|Incident Detection|ai.incident.mttd|mean(time_from_incid|GOVERN 5.1|N/A|NIST AI RMF|Organizational polic|Worldwide|Not Baseline
+NIST-014|Organizational polic|GOVERN 5.1|Risk & Compliance|NO|Incident Reporting|NO_METRIC|NO_FORMULA|GOVERN 5.1|N/A|NIST AI RMF|Organizational polic|Worldwide|Not Baseline
+NIST-014|Organizational polic|GOVERN 5.1|Risk & Compliance|NO|Incident Analysis|NO_METRIC|NO_FORMULA|GOVERN 5.1|N/A|NIST AI RMF|Organizational polic|Worldwide|Not Baseline
+NIST-014|Organizational polic|GOVERN 5.1|Risk & Compliance|NO|Privacy Compliance|NO_METRIC|NO_FORMULA|GOVERN 5.1|N/A|NIST AI RMF|Organizational polic|Worldwide|Not Baseline
+NIST-014|Organizational polic|GOVERN 5.1|Risk & Compliance|NO|Security Governance|NO_METRIC|NO_FORMULA|GOVERN 5.1|N/A|NIST AI RMF|Organizational polic|Worldwide|Baseline
+NIST-015|Policies shall be in|GOVERN 6.1|Risk & Compliance|NO|Safety and Security |NO_METRIC|NO_FORMULA|GOVERN 6.1|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-015|Policies shall be in|GOVERN 6.1|Risk & Compliance|NO|Lifecycle Management|NO_METRIC|NO_FORMULA|GOVERN 6.1|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-015|Policies shall be in|GOVERN 6.1|Risk & Compliance|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|GOVERN 6.1|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-015|Policies shall be in|GOVERN 6.1|Risk & Compliance|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|GOVERN 6.1|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-016|Policies shall be in|GOVERN 6.2|Risk & Compliance|NO|Privacy by Design|NO_METRIC|NO_FORMULA|GOVERN 6.2|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-016|Policies shall be in|GOVERN 6.2|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|GOVERN 6.2|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-016|Policies shall be in|GOVERN 6.2|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|GOVERN 6.2|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-016|Policies shall be in|GOVERN 6.2|Risk & Compliance|NO|Privacy Compliance|NO_METRIC|NO_FORMULA|GOVERN 6.2|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-016|Policies shall be in|GOVERN 6.2|Risk & Compliance|NO|Data Security|ai.data.dlp_incident|count(dlp_incidents)|GOVERN 6.2|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-016|Policies shall be in|GOVERN 6.2|Risk & Compliance|NO|Data Security|ai.data.encryption_c|(encrypted_datasets |GOVERN 6.2|N/A|NIST AI RMF|Policies shall be in|Worldwide|Not Baseline
+NIST-017|The specific context|MAP 1.1|Risk & Compliance|NO|Lifecycle Management|NO_METRIC|NO_FORMULA|MAP 1.1|N/A|NIST AI RMF|The specific context|Worldwide|Not Baseline
+NIST-017|The specific context|MAP 1.1|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|MAP 1.1|N/A|NIST AI RMF|The specific context|Worldwide|Not Baseline
+NIST-017|The specific context|MAP 1.1|Risk & Compliance|NO|AI System Context an|NO_METRIC|NO_FORMULA|MAP 1.1|N/A|NIST AI RMF|The specific context|Worldwide|Baseline
+NIST-018|Scientific findings,|MAP 1.5|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|MAP 1.5|N/A|NIST AI RMF|Scientific findings,|Worldwide|Baseline
+NIST-018|Scientific findings,|MAP 1.5|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|MAP 1.5|0.05|NIST AI RMF|Scientific findings,|Worldwide|Baseline
+NIST-018|Scientific findings,|MAP 1.5|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST AI RMF|Scientific findings,|Worldwide|Baseline
+NIST-019|Practices and person|MAP 1.6|Corporate Oversight|NO|Stakeholder Engageme|NO_METRIC|NO_FORMULA|MAP 1.6|N/A|NIST AI RMF|Practices and person|Worldwide|Not Baseline
+NIST-019|Practices and person|MAP 1.6|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|MAP 1.6|N/A|NIST AI RMF|Practices and person|Worldwide|Not Baseline
+NIST-019|Practices and person|MAP 1.6|Corporate Oversight|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|MAP 1.6|0.05|NIST AI RMF|Practices and person|Worldwide|Baseline
+NIST-019|Practices and person|MAP 1.6|Corporate Oversight|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST AI RMF|Practices and person|Worldwide|Baseline
+NIST-020|AI risk and impact a|MAP 2.2|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|MAP 2.2|0.05|NIST AI RMF|AI risk and impact a|Worldwide|Baseline
+NIST-020|AI risk and impact a|MAP 2.2|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST AI RMF|AI risk and impact a|Worldwide|Baseline
+NIST-020|AI risk and impact a|MAP 2.2|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|MAP 2.2|0.15|NIST AI RMF|AI risk and impact a|Worldwide|Not Baseline
+NIST-020|AI risk and impact a|MAP 2.2|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|NIST AI RMF|AI risk and impact a|Worldwide|Not Baseline
+NIST-020|AI risk and impact a|MAP 2.2|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|MAP 2.2|N/A|NIST AI RMF|AI risk and impact a|Worldwide|Not Baseline
+NIST-020|AI risk and impact a|MAP 2.2|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|MAP 2.2|N/A|NIST AI RMF|AI risk and impact a|Worldwide|Not Baseline
+NIST-020|AI risk and impact a|MAP 2.2|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|MAP 2.2|N/A|NIST AI RMF|AI risk and impact a|Worldwide|Not Baseline
+NIST-021|AI systems shall be |MAP 5.1|Solution Design|NO|Safety and Security |NO_METRIC|NO_FORMULA|MAP 5.1|N/A|NIST AI RMF|AI systems shall be |Worldwide|Not Baseline
+NIST-021|AI systems shall be |MAP 5.1|Solution Design|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|MAP 5.1|N/A|NIST AI RMF|AI systems shall be |Worldwide|Not Baseline
+NIST-021|AI systems shall be |MAP 5.1|Solution Design|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|MAP 5.1|N/A|NIST AI RMF|AI systems shall be |Worldwide|Not Baseline
+NIST-021|AI systems shall be |MAP 5.1|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|MAP 5.1|N/A|NIST AI RMF|AI systems shall be |Worldwide|Not Baseline
+NIST-021|AI systems shall be |MAP 5.1|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|MAP 5.1|N/A|NIST AI RMF|AI systems shall be |Worldwide|Not Baseline
+NIST-021|AI systems shall be |MAP 5.1|Solution Design|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|MAP 5.1|N/A|NIST AI RMF|AI systems shall be |Worldwide|Not Baseline
+NIST-021|AI systems shall be |MAP 5.1|Solution Design|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|MAP 5.1|N/A|NIST AI RMF|AI systems shall be |Worldwide|Not Baseline
+NIST-022|Likelihood and magni|MEASURE 1.1|Risk & Compliance|NO|Internal Audit|NO_METRIC|NO_FORMULA|MEASURE 1.1|N/A|NIST AI RMF|Likelihood and magni|Worldwide|Baseline
+NIST-022|Likelihood and magni|MEASURE 1.1|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|MEASURE 1.1|0.05|NIST AI RMF|Likelihood and magni|Worldwide|Baseline
+NIST-022|Likelihood and magni|MEASURE 1.1|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST AI RMF|Likelihood and magni|Worldwide|Baseline
+NIST-022|Likelihood and magni|MEASURE 1.1|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|MEASURE 1.1|0.10|NIST AI RMF|Likelihood and magni|Worldwide|Not Baseline
+NIST-022|Likelihood and magni|MEASURE 1.1|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|NIST AI RMF|Likelihood and magni|Worldwide|Not Baseline
+NIST-023|AI system performanc|MEASURE 2.1|System Performance|NO|Safety and Security |NO_METRIC|NO_FORMULA|MEASURE 2.1|N/A|NIST AI RMF|AI system performanc|Worldwide|Not Baseline
+NIST-023|AI system performanc|MEASURE 2.1|System Performance|YES|Performance Monitori|ai.model.accuracy|mean(accuracy scores|MEASURE 2.1|N/A|NIST AI RMF|AI system performanc|Worldwide|Baseline
+NIST-023|AI system performanc|MEASURE 2.1|System Performance|YES|Performance Monitori|ai.model.error_rate|(error_count / reque|MEASURE 2.1|N/A|NIST AI RMF|AI system performanc|Worldwide|Baseline
+NIST-023|AI system performanc|MEASURE 2.1|System Performance|YES|Performance Monitori|ai.model.hallucinati|(hallucinated_output|MEASURE 2.1|N/A|NIST AI RMF|AI system performanc|Worldwide|Baseline
+NIST-023|AI system performanc|MEASURE 2.1|System Performance|YES|Performance Monitori|ai.model.latency_p95|p95(response_time_ms|MEASURE 2.1|N/A|NIST AI RMF|AI system performanc|Worldwide|Baseline
+NIST-023|AI system performanc|MEASURE 2.1|System Performance|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|MEASURE 2.1|N/A|NIST AI RMF|AI system performanc|Worldwide|Not Baseline
+NIST-023|AI system performanc|MEASURE 2.1|System Performance|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|MEASURE 2.1|N/A|NIST AI RMF|AI system performanc|Worldwide|Not Baseline
+NIST-024|Explainability and i|MEASURE 2.6|Solution Design|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|MEASURE 2.6|90.0|NIST AI RMF|Explainability and i|Worldwide|Baseline
+NIST-024|Explainability and i|MEASURE 2.6|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|MEASURE 2.6|N/A|NIST AI RMF|Explainability and i|Worldwide|Not Baseline
+NIST-024|Explainability and i|MEASURE 2.6|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|MEASURE 2.6|N/A|NIST AI RMF|Explainability and i|Worldwide|Not Baseline
+NIST-025|AI system security, |MEASURE 2.7|Risk & Compliance|NO|Safety and Security |NO_METRIC|NO_FORMULA|MEASURE 2.7|N/A|NIST AI RMF|AI system security, |Worldwide|Not Baseline
+NIST-025|AI system security, |MEASURE 2.7|Risk & Compliance|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|MEASURE 2.7|N/A|NIST AI RMF|AI system security, |Worldwide|Not Baseline
+NIST-025|AI system security, |MEASURE 2.7|Risk & Compliance|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|MEASURE 2.7|N/A|NIST AI RMF|AI system security, |Worldwide|Not Baseline
+NIST-025|AI system security, |MEASURE 2.7|Risk & Compliance|NO|Software Security|ai.security.pentest_|days_since(last_pent|MEASURE 2.7|N/A|NIST AI RMF|AI system security, |Worldwide|Not Baseline
+NIST-025|AI system security, |MEASURE 2.7|Risk & Compliance|NO|Software Security|ai.security.vuln_ope|count(vulnerabilitie|MEASURE 2.7|N/A|NIST AI RMF|AI system security, |Worldwide|Not Baseline
+NIST-026|Privacy risks of AI |MEASURE 2.10|Risk & Compliance|NO|Privacy by Design|NO_METRIC|NO_FORMULA|MEASURE 2.10|N/A|NIST AI RMF|Privacy risks of AI |Worldwide|Not Baseline
+NIST-026|Privacy risks of AI |MEASURE 2.10|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|MEASURE 2.10|N/A|NIST AI RMF|Privacy risks of AI |Worldwide|Not Baseline
+NIST-026|Privacy risks of AI |MEASURE 2.10|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|MEASURE 2.10|N/A|NIST AI RMF|Privacy risks of AI |Worldwide|Not Baseline
+NIST-026|Privacy risks of AI |MEASURE 2.10|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|MEASURE 2.10|0.05|NIST AI RMF|Privacy risks of AI |Worldwide|Baseline
+NIST-026|Privacy risks of AI |MEASURE 2.10|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST AI RMF|Privacy risks of AI |Worldwide|Baseline
+NIST-027|AI system risks and |MANAGE 1.3|Risk & Compliance|NO|Incident Analysis|NO_METRIC|NO_FORMULA|MANAGE 1.3|N/A|NIST AI RMF|AI system risks and |Worldwide|Not Baseline
+NIST-027|AI system risks and |MANAGE 1.3|Risk & Compliance|NO|Event Logging|ai.logs.coverage_rat|(logged_events / tot|MANAGE 1.3|N/A|NIST AI RMF|AI system risks and |Worldwide|Not Baseline
+NIST-027|AI system risks and |MANAGE 1.3|Risk & Compliance|NO|Event Logging|ai.logs.retention_da|min(retention_days a|MANAGE 1.3|N/A|NIST AI RMF|AI system risks and |Worldwide|Not Baseline
+NIST-027|AI system risks and |MANAGE 1.3|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|MANAGE 1.3|N/A|NIST AI RMF|AI system risks and |Worldwide|Not Baseline
+NIST-027|AI system risks and |MANAGE 1.3|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|MANAGE 1.3|N/A|NIST AI RMF|AI system risks and |Worldwide|Not Baseline
+NIST-027|AI system risks and |MANAGE 1.3|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|MANAGE 1.3|N/A|NIST AI RMF|AI system risks and |Worldwide|Not Baseline
+NIST-028|Responses to identif|MANAGE 2.1|Risk & Compliance|NO|Incident Analysis|NO_METRIC|NO_FORMULA|MANAGE 2.1|N/A|NIST AI RMF|Responses to identif|Worldwide|Not Baseline
+NIST-028|Responses to identif|MANAGE 2.1|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|MANAGE 2.1|0.10|NIST AI RMF|Responses to identif|Worldwide|Not Baseline
+NIST-028|Responses to identif|MANAGE 2.1|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|NIST AI RMF|Responses to identif|Worldwide|Not Baseline
+NIST-028|Responses to identif|MANAGE 2.1|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|MANAGE 2.1|N/A|NIST AI RMF|Responses to identif|Worldwide|Not Baseline
+NIST-028|Responses to identif|MANAGE 2.1|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|MANAGE 2.1|N/A|NIST AI RMF|Responses to identif|Worldwide|Not Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|YES|Performance Monitori|ai.model.accuracy|mean(accuracy scores|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|YES|Performance Monitori|ai.model.error_rate|(error_count / reque|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|YES|Performance Monitori|ai.model.hallucinati|(hallucinated_output|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|YES|Performance Monitori|ai.model.latency_p95|p95(response_time_ms|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|NO|Continuous Improveme|NO_METRIC|NO_FORMULA|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Not Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Not Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Not Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|NO|Post-Market Monitori|ai.monitoring.alert_|mean(time_from_alert|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Not Baseline
+NIST-029|Mechanisms shall be |MANAGE 3.1|System Performance|NO|Post-Market Monitori|ai.monitoring.covera|(monitored_endpoints|MANAGE 3.1|N/A|NIST AI RMF|Mechanisms shall be |Worldwide|Not Baseline
+NIST-030|Risk treatment decis|MANAGE 4.1|Risk & Compliance|NO|Stakeholder Engageme|NO_METRIC|NO_FORMULA|MANAGE 4.1|N/A|NIST AI RMF|Risk treatment decis|Worldwide|Not Baseline
+NIST-030|Risk treatment decis|MANAGE 4.1|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|MANAGE 4.1|0.10|NIST AI RMF|Risk treatment decis|Worldwide|Not Baseline
+NIST-030|Risk treatment decis|MANAGE 4.1|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|NIST AI RMF|Risk treatment decis|Worldwide|Not Baseline
+NIST-030|Risk treatment decis|MANAGE 4.1|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|MANAGE 4.1|N/A|NIST AI RMF|Risk treatment decis|Worldwide|Not Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|GV-1.1 Confabulation|90.0|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|YES|Performance Monitori|ai.model.accuracy|mean(accuracy scores|GV-1.1 Confabulation|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|YES|Performance Monitori|ai.model.error_rate|(error_count / reque|GV-1.1 Confabulation|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|YES|Performance Monitori|ai.model.hallucinati|(hallucinated_output|GV-1.1 Confabulation|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|YES|Performance Monitori|ai.model.latency_p95|p95(response_time_ms|GV-1.1 Confabulation|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|GV-1.1 Confabulation|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|GV-1.1 Confabulation|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|NO|Explainability|ai.explain.coverage_|(explained_outputs /|GV-1.1 Confabulation|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G01|Organizations shall |GV-1.1 Confabulation|System Performance|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|GV-1.1 Confabulation|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G02|Organizations shall |GV-1.1 Data Privacy|Risk & Compliance|YES|Data Quality|ai.data.bias_score|max(demographic_imba|GV-1.1 Data Privacy|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G02|Organizations shall |GV-1.1 Data Privacy|Risk & Compliance|YES|Data Quality|ai.data.quality_scor|weighted_mean(comple|GV-1.1 Data Privacy|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G02|Organizations shall |GV-1.1 Data Privacy|Risk & Compliance|NO|Privacy by Design|NO_METRIC|NO_FORMULA|GV-1.1 Data Privacy|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G02|Organizations shall |GV-1.1 Data Privacy|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|GV-1.1 Data Privacy|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G02|Organizations shall |GV-1.1 Data Privacy|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|GV-1.1 Data Privacy|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G02|Organizations shall |GV-1.1 Data Privacy|Risk & Compliance|NO|Data Security|ai.data.dlp_incident|count(dlp_incidents)|GV-1.1 Data Privacy|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G02|Organizations shall |GV-1.1 Data Privacy|Risk & Compliance|NO|Data Security|ai.data.encryption_c|(encrypted_datasets |GV-1.1 Data Privacy|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G03|Organizations shall |GV-1.1 CBRN|Risk & Compliance|NO|Independent Catastro|NO_METRIC|NO_FORMULA|GV-1.1 CBRN|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G03|Organizations shall |GV-1.1 CBRN|Risk & Compliance|NO|Incident Detection|ai.incident.detectio|(detected_incidents |GV-1.1 CBRN|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G03|Organizations shall |GV-1.1 CBRN|Risk & Compliance|NO|Incident Detection|ai.incident.mttd|mean(time_from_incid|GV-1.1 CBRN|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G03|Organizations shall |GV-1.1 CBRN|Risk & Compliance|NO|Safety|NO_METRIC|NO_FORMULA|GV-1.1 CBRN|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G03|Organizations shall |GV-1.1 CBRN|Risk & Compliance|NO|Catastrophic Harm As|NO_METRIC|NO_FORMULA|GV-1.1 CBRN|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G04|Organizations shall |GV-1.1 Harmful Conte|System Performance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|GV-1.1 Harmful Conte|90.0|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G04|Organizations shall |GV-1.1 Harmful Conte|System Performance|NO|Incident Detection|ai.incident.detectio|(detected_incidents |GV-1.1 Harmful Conte|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G04|Organizations shall |GV-1.1 Harmful Conte|System Performance|NO|Incident Detection|ai.incident.mttd|mean(time_from_incid|GV-1.1 Harmful Conte|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G04|Organizations shall |GV-1.1 Harmful Conte|System Performance|NO|Safety|NO_METRIC|NO_FORMULA|GV-1.1 Harmful Conte|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G04|Organizations shall |GV-1.1 Harmful Conte|System Performance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|GV-1.1 Harmful Conte|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G04|Organizations shall |GV-1.1 Harmful Conte|System Performance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|GV-1.1 Harmful Conte|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G05|Organizations shall |GV-1.1 Intellectual |Risk & Compliance|NO|GPAI Model Governanc|NO_METRIC|NO_FORMULA|GV-1.1 Intellectual |N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G05|Organizations shall |GV-1.1 Intellectual |Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|GV-1.1 Intellectual |N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G05|Organizations shall |GV-1.1 Intellectual |Risk & Compliance|NO|Privacy Compliance|NO_METRIC|NO_FORMULA|GV-1.1 Intellectual |N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G05|Organizations shall |GV-1.1 Intellectual |Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G05|Organizations shall |GV-1.1 Intellectual |Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|GV-1.1 Intellectual |90.0|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G06|Organizations shall |GV-1.1 Prompt Inject|System Performance|NO|Safety and Security |NO_METRIC|NO_FORMULA|GV-1.1 Prompt Inject|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G06|Organizations shall |GV-1.1 Prompt Inject|System Performance|NO|Incident Detection|ai.incident.detectio|(detected_incidents |GV-1.1 Prompt Inject|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G06|Organizations shall |GV-1.1 Prompt Inject|System Performance|NO|Incident Detection|ai.incident.mttd|mean(time_from_incid|GV-1.1 Prompt Inject|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G06|Organizations shall |GV-1.1 Prompt Inject|System Performance|NO|Robustness|ai.robustness.drift_|KL_divergence(baseli|GV-1.1 Prompt Inject|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G06|Organizations shall |GV-1.1 Prompt Inject|System Performance|NO|Robustness|ai.robustness.uptime|(uptime_minutes / to|GV-1.1 Prompt Inject|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G06|Organizations shall |GV-1.1 Prompt Inject|System Performance|NO|Software Security|ai.security.pentest_|days_since(last_pent|GV-1.1 Prompt Inject|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G06|Organizations shall |GV-1.1 Prompt Inject|System Performance|NO|Software Security|ai.security.vuln_ope|count(vulnerabilitie|GV-1.1 Prompt Inject|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G07|Organizations shall |GV-1.1 Overreliance|System Performance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|GV-1.1 Overreliance|90.0|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G07|Organizations shall |GV-1.1 Overreliance|System Performance|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|GV-1.1 Overreliance|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G07|Organizations shall |GV-1.1 Overreliance|System Performance|YES|Performance Monitori|ai.model.accuracy|mean(accuracy scores|GV-1.1 Overreliance|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G07|Organizations shall |GV-1.1 Overreliance|System Performance|YES|Performance Monitori|ai.model.error_rate|(error_count / reque|GV-1.1 Overreliance|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G07|Organizations shall |GV-1.1 Overreliance|System Performance|YES|Performance Monitori|ai.model.hallucinati|(hallucinated_output|GV-1.1 Overreliance|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G07|Organizations shall |GV-1.1 Overreliance|System Performance|YES|Performance Monitori|ai.model.latency_p95|p95(response_time_ms|GV-1.1 Overreliance|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G07|Organizations shall |GV-1.1 Overreliance|System Performance|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|GV-1.1 Overreliance|0.10|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G07|Organizations shall |GV-1.1 Overreliance|System Performance|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |GV-1.1 Overreliance|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G08|Organizations shall |GV-1.1 Synthetic Con|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|GV-1.1 Synthetic Con|90.0|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G08|Organizations shall |GV-1.1 Synthetic Con|Corporate Oversight|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|GV-1.1 Synthetic Con|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G08|Organizations shall |GV-1.1 Synthetic Con|Corporate Oversight|NO|Technical Documentat|NO_METRIC|NO_FORMULA|GV-1.1 Synthetic Con|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G08|Organizations shall |GV-1.1 Synthetic Con|Corporate Oversight|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G08|Organizations shall |GV-1.1 Synthetic Con|Corporate Oversight|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|GV-1.1 Synthetic Con|80.0|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G09|Organizations shall |GV-6.2 Supply Chain|Risk & Compliance|NO|GPAI Model Governanc|NO_METRIC|NO_FORMULA|GV-6.2 Supply Chain|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G09|Organizations shall |GV-6.2 Supply Chain|Risk & Compliance|NO|Model Cards and Data|NO_METRIC|NO_FORMULA|GV-6.2 Supply Chain|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G09|Organizations shall |GV-6.2 Supply Chain|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|GV-6.2 Supply Chain|0.05|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G09|Organizations shall |GV-6.2 Supply Chain|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NIST GenAI Profile|Organizations shall |Worldwide|Baseline
+NIST-G09|Organizations shall |GV-6.2 Supply Chain|Risk & Compliance|NO|Supplier Risk|NO_METRIC|NO_FORMULA|GV-6.2 Supply Chain|N/A|NIST GenAI Profile|Organizations shall |Worldwide|Not Baseline
+NIST-G10|Organizations deploy|MG-2.2 Human Oversig|Solution Design|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|MG-2.2 Human Oversig|0.10|NIST GenAI Profile|Organizations deploy|Worldwide|Not Baseline
+NIST-G10|Organizations deploy|MG-2.2 Human Oversig|Solution Design|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |MG-2.2 Human Oversig|N/A|NIST GenAI Profile|Organizations deploy|Worldwide|Not Baseline
+NIST-G10|Organizations deploy|MG-2.2 Human Oversig|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|MG-2.2 Human Oversig|N/A|NIST GenAI Profile|Organizations deploy|Worldwide|Not Baseline
+NIST-G10|Organizations deploy|MG-2.2 Human Oversig|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|MG-2.2 Human Oversig|N/A|NIST GenAI Profile|Organizations deploy|Worldwide|Not Baseline
+NIST-G10|Organizations deploy|MG-2.2 Human Oversig|Solution Design|NO|Adverse Decision App|ai.appeals.rate|(appeals_submitted /|MG-2.2 Human Oversig|N/A|NIST GenAI Profile|Organizations deploy|Worldwide|Not Baseline
+NIST-G10|Organizations deploy|MG-2.2 Human Oversig|Solution Design|NO|Adverse Decision App|ai.appeals.resolutio|mean(resolution_time|MG-2.2 Human Oversig|N/A|NIST GenAI Profile|Organizations deploy|Worldwide|Not Baseline
+NY-001|Developers and deplo|RAISE Act §2(1)|Risk & Compliance|NO|Independent Catastro|NO_METRIC|NO_FORMULA|RAISE Act §2(1)|N/A|NY RAISE Act|Developers and deplo|US-NY|Not Baseline
+NY-001|Developers and deplo|RAISE Act §2(1)|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|RAISE Act §2(1)|0.05|NY RAISE Act|Developers and deplo|US-NY|Baseline
+NY-001|Developers and deplo|RAISE Act §2(1)|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|NY RAISE Act|Developers and deplo|US-NY|Baseline
+NY-001|Developers and deplo|RAISE Act §2(1)|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|RAISE Act §2(1)|0.15|NY RAISE Act|Developers and deplo|US-NY|Not Baseline
+NY-001|Developers and deplo|RAISE Act §2(1)|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|NY RAISE Act|Developers and deplo|US-NY|Not Baseline
+NY-001|Developers and deplo|RAISE Act §2(1)|Risk & Compliance|NO|Catastrophic Harm As|NO_METRIC|NO_FORMULA|RAISE Act §2(1)|N/A|NY RAISE Act|Developers and deplo|US-NY|Not Baseline
+NY-002|Developers of covere|RAISE Act §4(1)|System Performance|NO|Incident Reporting|NO_METRIC|NO_FORMULA|RAISE Act §4(1)|N/A|NY RAISE Act|Developers of covere|US-NY|Not Baseline
+NY-002|Developers of covere|RAISE Act §4(1)|System Performance|NO|Regulatory Safety In|NO_METRIC|NO_FORMULA|RAISE Act §4(1)|N/A|NY RAISE Act|Developers of covere|US-NY|Not Baseline
+NY-002|Developers of covere|RAISE Act §4(1)|System Performance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|RAISE Act §4(1)|N/A|NY RAISE Act|Developers of covere|US-NY|Not Baseline
+NY-002|Developers of covere|RAISE Act §4(1)|System Performance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|RAISE Act §4(1)|N/A|NY RAISE Act|Developers of covere|US-NY|Not Baseline
+NY-003|Developers of high-c|RAISE Act §3(1)|Risk & Compliance|NO|Independent Certific|NO_METRIC|NO_FORMULA|RAISE Act §3(1)|N/A|NY RAISE Act|Developers of high-c|US-NY|Not Baseline
+NY-003|Developers of high-c|RAISE Act §3(1)|Risk & Compliance|NO|Independent Catastro|NO_METRIC|NO_FORMULA|RAISE Act §3(1)|N/A|NY RAISE Act|Developers of high-c|US-NY|Not Baseline
+NY-003|Developers of high-c|RAISE Act §3(1)|Risk & Compliance|NO|Catastrophic Harm As|NO_METRIC|NO_FORMULA|RAISE Act §3(1)|N/A|NY RAISE Act|Developers of high-c|US-NY|Not Baseline
+TX-001|No person may develo|HB 149 §552B.052(1)|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-001|No person may develo|HB 149 §552B.052(1)|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|HB 149 §552B.052(1)|90.0|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-001|No person may develo|HB 149 §552B.052(1)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|HB 149 §552B.052(1)|N/A|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-001|No person may develo|HB 149 §552B.052(1)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|HB 149 §552B.052(1)|N/A|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-001|No person may develo|HB 149 §552B.052(1)|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|HB 149 §552B.052(1)|N/A|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-002|State agencies deplo|HB 149 §552B.055|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|HB 149 §552B.055|90.0|Texas TRAIGA|State agencies deplo|US-TX|Baseline
+TX-002|State agencies deplo|HB 149 §552B.055|Corporate Oversight|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|HB 149 §552B.055|N/A|Texas TRAIGA|State agencies deplo|US-TX|Not Baseline
+TX-002|State agencies deplo|HB 149 §552B.055|Corporate Oversight|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|HB 149 §552B.055|0.10|Texas TRAIGA|State agencies deplo|US-TX|Not Baseline
+TX-002|State agencies deplo|HB 149 §552B.055|Corporate Oversight|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |HB 149 §552B.055|N/A|Texas TRAIGA|State agencies deplo|US-TX|Not Baseline
+TX-003|State agencies shall|HB 149 §552B.056|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|HB 149 §552B.056|N/A|Texas TRAIGA|State agencies shall|US-TX|Not Baseline
+TX-003|State agencies shall|HB 149 §552B.056|Corporate Oversight|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|HB 149 §552B.056|0.10|Texas TRAIGA|State agencies shall|US-TX|Not Baseline
+TX-003|State agencies shall|HB 149 §552B.056|Corporate Oversight|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |HB 149 §552B.056|N/A|Texas TRAIGA|State agencies shall|US-TX|Not Baseline
+TX-003|State agencies shall|HB 149 §552B.056|Corporate Oversight|NO|Adverse Decision App|ai.appeals.rate|(appeals_submitted /|HB 149 §552B.056|N/A|Texas TRAIGA|State agencies shall|US-TX|Not Baseline
+TX-003|State agencies shall|HB 149 §552B.056|Corporate Oversight|NO|Adverse Decision App|ai.appeals.resolutio|mean(resolution_time|HB 149 §552B.056|N/A|Texas TRAIGA|State agencies shall|US-TX|Not Baseline
+TX-004|No person may develo|HB 149 §552B.052(3)|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|HB 149 §552B.052(3)|N/A|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-004|No person may develo|HB 149 §552B.052(3)|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|HB 149 §552B.052(3)|N/A|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-004|No person may develo|HB 149 §552B.052(3)|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-004|No person may develo|HB 149 §552B.052(3)|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|HB 149 §552B.052(3)|90.0|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-004|No person may develo|HB 149 §552B.052(3)|Risk & Compliance|NO|Identity and Access|ai.access.failed_aut|failed_auth_events /|HB 149 §552B.052(3)|N/A|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-004|No person may develo|HB 149 §552B.052(3)|Risk & Compliance|NO|Identity and Access|ai.access.mfa_covera|(mfa_enabled_users /|HB 149 §552B.052(3)|N/A|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+TX-004|No person may develo|HB 149 §552B.052(3)|Risk & Compliance|NO|Identity and Access|ai.access.privileged|(reviewed_accounts /|HB 149 §552B.052(3)|N/A|Texas TRAIGA|No person may develo|US-TX|Not Baseline
+UK-001|Developers of fronti|Voluntary Commitment|Risk & Compliance|NO|Safety and Security |NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Developers of fronti|UK|Not Baseline
+UK-001|Developers of fronti|Voluntary Commitment|Risk & Compliance|NO|Independent Catastro|NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Developers of fronti|UK|Not Baseline
+UK-001|Developers of fronti|Voluntary Commitment|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Voluntary Commitment|0.05|UK Frontier AI Code|Developers of fronti|UK|Baseline
+UK-001|Developers of fronti|Voluntary Commitment|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UK Frontier AI Code|Developers of fronti|UK|Baseline
+UK-001|Developers of fronti|Voluntary Commitment|Risk & Compliance|NO|Catastrophic Harm As|NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Developers of fronti|UK|Not Baseline
+UK-002|Frontier AI develope|Voluntary Commitment|Corporate Oversight|NO|Stakeholder Engageme|NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Frontier AI develope|UK|Not Baseline
+UK-002|Frontier AI develope|Voluntary Commitment|Corporate Oversight|NO|Incident Reporting|NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Frontier AI develope|UK|Not Baseline
+UK-002|Frontier AI develope|Voluntary Commitment|Corporate Oversight|NO|Catastrophic Harm As|NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Frontier AI develope|UK|Not Baseline
+UK-003|Frontier AI develope|Voluntary Commitment|Risk & Compliance|NO|Strategic Alignment|NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Frontier AI develope|UK|Not Baseline
+UK-003|Frontier AI develope|Voluntary Commitment|Risk & Compliance|NO|GPAI Model Governanc|NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Frontier AI develope|UK|Not Baseline
+UK-003|Frontier AI develope|Voluntary Commitment|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Voluntary Commitment|0.10|UK Frontier AI Code|Frontier AI develope|UK|Not Baseline
+UK-003|Frontier AI develope|Voluntary Commitment|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|UK Frontier AI Code|Frontier AI develope|UK|Not Baseline
+UK-003|Frontier AI develope|Voluntary Commitment|Risk & Compliance|NO|Catastrophic Harm As|NO_METRIC|NO_FORMULA|Voluntary Commitment|N/A|UK Frontier AI Code|Frontier AI develope|UK|Not Baseline
+UNX-001|(f) Implement robust|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|UN Policies|(f) Implement robust|United Nations|Not Baseline
+UNX-001|(f) Implement robust|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|UN Policies|(f) Implement robust|United Nations|Not Baseline
+UNX-002|26 Among other thing|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|26 Among other thing|United Nations|Baseline
+UNX-002|26 Among other thing|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|26 Among other thing|United Nations|Baseline
+UNX-003|The use of artificia|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|The use of artificia|United Nations|Not Baseline
+UNX-003|The use of artificia|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|The use of artificia|United Nations|Not Baseline
+UNX-004|The responsible depl|Imported from PDF so|Solution Design|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Imported from PDF so|0.10|UN Policies|The responsible depl|United Nations|Not Baseline
+UNX-004|The responsible depl|Imported from PDF so|Solution Design|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Imported from PDF so|N/A|UN Policies|The responsible depl|United Nations|Not Baseline
+UNX-005|Under the Act , cert|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Under the Act , cert|United Nations|Baseline
+UNX-005|Under the Act , cert|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Under the Act , cert|United Nations|Baseline
+UNX-006|(e) Carry out and re|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.risk.disclosure_g|max(0, 100 - ai.tran|Your disclosure gap |10.0|UN Policies|(e) Carry out and re|United Nations|Not Baseline
+UNX-006|(e) Carry out and re|Imported from PDF so|Risk & Compliance|YES|Regulatory Complianc|ai.transparency.disc|(disclosed_interacti|Imported from PDF so|90.0|UN Policies|(e) Carry out and re|United Nations|Not Baseline
+UNX-007|Deployers of high -r|Imported from PDF so|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Imported from PDF so|0.15|UN Policies|Deployers of high -r|United Nations|Not Baseline
+UNX-007|Deployers of high -r|Imported from PDF so|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|UN Policies|Deployers of high -r|United Nations|Not Baseline
+UNX-008|Under the Digital Se|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|Under the Digital Se|United Nations|Not Baseline
+UNX-008|Under the Digital Se|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|Under the Digital Se|United Nations|Not Baseline
+UNX-009|Protecting the priva|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|UN Policies|Protecting the priva|United Nations|Not Baseline
+UNX-009|Protecting the priva|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|UN Policies|Protecting the priva|United Nations|Not Baseline
+UNX-010|To ensure that IPBES|Imported from PDF so|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|Imported from PDF so|90.0|UN Policies|To ensure that IPBES|United Nations|Baseline
+UNX-011|The use of AI within|Imported from PDF so|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|Imported from PDF so|N/A|UN Policies|The use of AI within|United Nations|Not Baseline
+UNX-011|The use of AI within|Imported from PDF so|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|Imported from PDF so|N/A|UN Policies|The use of AI within|United Nations|Not Baseline
+UNX-012|It aims to help expe|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|It aims to help expe|United Nations|Not Baseline
+UNX-012|It aims to help expe|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|It aims to help expe|United Nations|Not Baseline
+UNX-013|For example, the Eur|Imported from PDF so|Risk & Compliance|NO|Post-Market Monitori|ai.monitoring.alert_|mean(time_from_alert|Imported from PDF so|N/A|UN Policies|For example, the Eur|United Nations|Not Baseline
+UNX-013|For example, the Eur|Imported from PDF so|Risk & Compliance|NO|Post-Market Monitori|ai.monitoring.covera|(monitored_endpoints|Imported from PDF so|N/A|UN Policies|For example, the Eur|United Nations|Not Baseline
+UNX-014|To address the chall|Imported from PDF so|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Imported from PDF so|0.10|UN Policies|To address the chall|United Nations|Not Baseline
+UNX-014|To address the chall|Imported from PDF so|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|UN Policies|To address the chall|United Nations|Not Baseline
+UNX-015|The Chair noted that|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|The Chair noted that|United Nations|Not Baseline
+UNX-015|The Chair noted that|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|The Chair noted that|United Nations|Not Baseline
+UNX-016|Businesses that adap|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Businesses that adap|United Nations|Baseline
+UNX-016|Businesses that adap|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Businesses that adap|United Nations|Baseline
+UNX-017|For instance, the Bu|Imported from PDF so|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|Imported from PDF so|N/A|UN Policies|For instance, the Bu|United Nations|Not Baseline
+UNX-017|For instance, the Bu|Imported from PDF so|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|Imported from PDF so|N/A|UN Policies|For instance, the Bu|United Nations|Not Baseline
+UNX-018|Businesses can also |Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Businesses can also |United Nations|Baseline
+UNX-018|Businesses can also |Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Businesses can also |United Nations|Baseline
+UNX-019|The key is to ensure|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|The key is to ensure|United Nations|Not Baseline
+UNX-019|The key is to ensure|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|The key is to ensure|United Nations|Not Baseline
+UNX-020|In relation to this,|Imported from PDF so|Data Integration|YES|Resource Management|ai.resources.compute|sum(compute_costs) f|Imported from PDF so|N/A|UN Policies|In relation to this,|United Nations|Not Baseline
+UNX-020|In relation to this,|Imported from PDF so|Data Integration|YES|Resource Management|ai.resources.token_u|sum(prompt_tokens + |Imported from PDF so|N/A|UN Policies|In relation to this,|United Nations|Not Baseline
+UNX-021|To be aligned with t|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|To be aligned with t|United Nations|Baseline
+UNX-021|To be aligned with t|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|To be aligned with t|United Nations|Baseline
+UNX-022|Theref ore, the star|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Theref ore, the star|United Nations|Baseline
+UNX-022|Theref ore, the star|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Theref ore, the star|United Nations|Baseline
+UNX-023|The Working Group re|Imported from PDF so|Corporate Oversight|NO|Roles and Resources|ai.governance.role_f|(filled_governance_r|Imported from PDF so|N/A|UN Policies|The Working Group re|United Nations|Not Baseline
+UNX-024|Whenever a company n|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Whenever a company n|United Nations|Baseline
+UNX-024|Whenever a company n|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Whenever a company n|United Nations|Baseline
+UNX-025|In the Guiding Princ|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|In the Guiding Princ|United Nations|Baseline
+UNX-025|In the Guiding Princ|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|In the Guiding Princ|United Nations|Baseline
+UNX-026|Robust regulation sh|Imported from PDF so|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Imported from PDF so|0.15|UN Policies|Robust regulation sh|United Nations|Not Baseline
+UNX-026|Robust regulation sh|Imported from PDF so|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|UN Policies|Robust regulation sh|United Nations|Not Baseline
+UNX-027|64 Three types of me|Imported from PDF so|Solution Design|YES|Human Oversight|ai.oversight.overrid|(human_overrides / a|Imported from PDF so|0.10|UN Policies|64 Three types of me|United Nations|Not Baseline
+UNX-027|64 Three types of me|Imported from PDF so|Solution Design|NO|Human Oversight|ai.oversight.review_|(reviewed_decisions |Imported from PDF so|N/A|UN Policies|64 Three types of me|United Nations|Not Baseline
+UNX-028|As part of their cor|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|As part of their cor|United Nations|Baseline
+UNX-028|As part of their cor|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|As part of their cor|United Nations|Baseline
+UNX-029|Companies developing|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Companies developing|United Nations|Baseline
+UNX-029|Companies developing|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Companies developing|United Nations|Baseline
+UNX-030|The United Nations s|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|The United Nations s|United Nations|Not Baseline
+UNX-030|The United Nations s|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|The United Nations s|United Nations|Not Baseline
+UNX-031|Such uses are to be |Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|Such uses are to be |United Nations|Not Baseline
+UNX-031|Such uses are to be |Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|Such uses are to be |United Nations|Not Baseline
+UNX-032|• review the DMRs fr|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|• review the DMRs fr|United Nations|Not Baseline
+UNX-032|• review the DMRs fr|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|• review the DMRs fr|United Nations|Not Baseline
+UNX-033|• review DMRs upon r|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|• review DMRs upon r|United Nations|Not Baseline
+UNX-033|• review DMRs upon r|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|• review DMRs upon r|United Nations|Not Baseline
+UNX-034|When the use of arti|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|UN Policies|When the use of arti|United Nations|Not Baseline
+UNX-034|When the use of arti|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|UN Policies|When the use of arti|United Nations|Not Baseline
+UNX-035|When the use of arti|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|UN Policies|When the use of arti|United Nations|Not Baseline
+UNX-035|When the use of arti|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|UN Policies|When the use of arti|United Nations|Not Baseline
+UNX-036|Transparency and exp|Imported from PDF so|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|Imported from PDF so|N/A|UN Policies|Transparency and exp|United Nations|Not Baseline
+UNX-036|Transparency and exp|Imported from PDF so|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|Imported from PDF so|N/A|UN Policies|Transparency and exp|United Nations|Not Baseline
+UNX-037|The organization sho|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|The organization sho|United Nations|Not Baseline
+UNX-037|The organization sho|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|The organization sho|United Nations|Not Baseline
+UNX-038|All personal data sh|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|UN Policies|All personal data sh|United Nations|Not Baseline
+UNX-038|All personal data sh|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|UN Policies|All personal data sh|United Nations|Not Baseline
+UNX-039|Transparency and exp|Imported from PDF so|Solution Design|NO|Explainability|ai.explain.coverage_|(explained_outputs /|Imported from PDF so|N/A|UN Policies|Transparency and exp|United Nations|Not Baseline
+UNX-039|Transparency and exp|Imported from PDF so|Solution Design|NO|Explainability|ai.explain.user_sati|mean(explanation_rat|Imported from PDF so|N/A|UN Policies|Transparency and exp|United Nations|Not Baseline
+UNX-040|Right to privacy, da|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|UN Policies|Right to privacy, da|United Nations|Not Baseline
+UNX-040|Right to privacy, da|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|UN Policies|Right to privacy, da|United Nations|Not Baseline
+UNX-041|Risk Assessments The|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Risk Assessments The|United Nations|Baseline
+UNX-041|Risk Assessments The|Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Risk Assessments The|United Nations|Baseline
+UNX-042|If risks associated |Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|If risks associated |United Nations|Not Baseline
+UNX-042|If risks associated |Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|If risks associated |United Nations|Not Baseline
+UNX-043|The AI risk manageme|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|The AI risk manageme|United Nations|Not Baseline
+UNX-043|The AI risk manageme|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|The AI risk manageme|United Nations|Not Baseline
+UNX-044|The risk owner shoul|Imported from PDF so|Risk & Compliance|YES|Risk Treatment|ai.oversight.overrid|human_overrides / ai|Imported from PDF so|0.10|UN Policies|The risk owner shoul|United Nations|Not Baseline
+UNX-044|The risk owner shoul|Imported from PDF so|Risk & Compliance|YES|Risk Treatment|ai.risk.override_to_|ai.oversight.overrid|Your override-to-tar|0.80|UN Policies|The risk owner shoul|United Nations|Not Baseline
+UNX-045|Right to privacy, da|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|Imported from PDF so|N/A|UN Policies|Right to privacy, da|United Nations|Not Baseline
+UNX-045|Right to privacy, da|Imported from PDF so|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|Imported from PDF so|N/A|UN Policies|Right to privacy, da|United Nations|Not Baseline
+UNX-046|Existing Risk -Manag|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|Existing Risk -Manag|United Nations|Not Baseline
+UNX-046|Existing Risk -Manag|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|Existing Risk -Manag|United Nations|Not Baseline
+UNX-047|Safety and security |Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Safety and security |United Nations|Baseline
+UNX-047|Safety and security |Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Safety and security |United Nations|Baseline
+UNX-048|AI systems’ Page 8 p|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|AI systems’ Page 8 p|United Nations|Not Baseline
+UNX-048|AI systems’ Page 8 p|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|AI systems’ Page 8 p|United Nations|Not Baseline
+UNX-049|Risk owners should b|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|Risk owners should b|United Nations|Not Baseline
+UNX-049|Risk owners should b|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|Risk owners should b|United Nations|Not Baseline
+UNX-050|As a measure of segr|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|As a measure of segr|United Nations|Not Baseline
+UNX-050|As a measure of segr|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|As a measure of segr|United Nations|Not Baseline
+UNX-051|The organ ization’s |Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|The organ ization’s |United Nations|Not Baseline
+UNX-051|The organ ization’s |Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|The organ ization’s |United Nations|Not Baseline
+UNX-052|Governance of AI Sys|Imported from PDF so|Data Integration|YES|Resource Management|ai.resources.compute|sum(compute_costs) f|Imported from PDF so|N/A|UN Policies|Governance of AI Sys|United Nations|Not Baseline
+UNX-052|Governance of AI Sys|Imported from PDF so|Data Integration|YES|Resource Management|ai.resources.token_u|sum(prompt_tokens + |Imported from PDF so|N/A|UN Policies|Governance of AI Sys|United Nations|Not Baseline
+UNX-053|Safety and security |Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.core.error_rate|mean(ai.core.error_r|Imported from PDF so|0.05|UN Policies|Safety and security |United Nations|Baseline
+UNX-053|Safety and security |Imported from PDF so|Risk & Compliance|YES|Risk Identification|ai.risk.error_to_lim|ai.core.error_rate /|Your error-to-limit |0.80|UN Policies|Safety and security |United Nations|Baseline
+UNX-054|AI - related control|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.open_high_ri|count(risks where pr|Imported from PDF so|N/A|UN Policies|AI - related control|United Nations|Not Baseline
+UNX-054|AI - related control|Imported from PDF so|Risk & Compliance|NO|Risk Monitoring|ai.risk.treatment_co|(completed_treatment|Imported from PDF so|N/A|UN Policies|AI - related control|United Nations|Not Baseline
+UNX-055|• Impact Assessment:|Imported from PDF so|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|Imported from PDF so|0.15|UN Policies|• Impact Assessment:|United Nations|Not Baseline
+UNX-055|• Impact Assessment:|Imported from PDF so|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|UN Policies|• Impact Assessment:|United Nations|Not Baseline
+UT-001|Entities using gener|SB 149 §13-63-201|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|SB 149 §13-63-201|90.0|Utah AI Policy Act|Entities using gener|US-UT|Baseline
+UT-001|Entities using gener|SB 149 §13-63-201|Risk & Compliance|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|SB 149 §13-63-201|N/A|Utah AI Policy Act|Entities using gener|US-UT|Not Baseline
+UT-001|Entities using gener|SB 149 §13-63-201|Risk & Compliance|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|Utah AI Policy Act|Entities using gener|US-UT|Baseline
+UT-001|Entities using gener|SB 149 §13-63-201|Risk & Compliance|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|SB 149 §13-63-201|80.0|Utah AI Policy Act|Entities using gener|US-UT|Baseline
+UT-002|Regulated occupation|SB 149 §13-63-202|Risk & Compliance|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|SB 149 §13-63-202|90.0|Utah AI Policy Act|Regulated occupation|US-UT|Baseline
+UT-002|Regulated occupation|SB 149 §13-63-202|Risk & Compliance|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|SB 149 §13-63-202|N/A|Utah AI Policy Act|Regulated occupation|US-UT|Not Baseline
+UT-002|Regulated occupation|SB 149 §13-63-202|Risk & Compliance|NO|Personal Data|ai.privacy.consent_r|(consented_records /|SB 149 §13-63-202|N/A|Utah AI Policy Act|Regulated occupation|US-UT|Not Baseline
+UT-002|Regulated occupation|SB 149 §13-63-202|Risk & Compliance|NO|Personal Data|ai.privacy.dsr_respo|mean(days_from_reque|SB 149 §13-63-202|N/A|Utah AI Policy Act|Regulated occupation|US-UT|Not Baseline
+WA-001|Covered entities sha|SB 5827 §2(1)|Risk & Compliance|NO|Safety and Security |NO_METRIC|NO_FORMULA|SB 5827 §2(1)|N/A|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-001|Covered entities sha|SB 5827 §2(1)|Risk & Compliance|YES|AI Impact Assessment|ai.core.drift_score|KL_divergence(baseli|SB 5827 §2(1)|0.15|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-001|Covered entities sha|SB 5827 §2(1)|Risk & Compliance|NO|AI Impact Assessment|ai.risk.drift_to_lim|ai.core.drift_score |Your drift-to-limit |0.80|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-001|Covered entities sha|SB 5827 §2(1)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.demograp|min(P(Y=1 A=a)) / ma|SB 5827 §2(1)|N/A|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-001|Covered entities sha|SB 5827 §2(1)|Risk & Compliance|NO|Fairness and Bias Ma|ai.fairness.equal_op|max(TPR_a - TPR_b) a|SB 5827 §2(1)|N/A|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-001|Covered entities sha|SB 5827 §2(1)|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|SB 5827 §2(1)|N/A|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-002|Covered entities sha|SB 5827 §2(3)|Corporate Oversight|YES|AI Transparency|ai.transparency.disc|(disclosed_interacti|SB 5827 §2(3)|90.0|Washington SB 5827|Covered entities sha|US-WA|Baseline
+WA-002|Covered entities sha|SB 5827 §2(3)|Corporate Oversight|NO|Consumer Interaction|ai.disclosure.consum|(disclosed_consumer_|SB 5827 §2(3)|N/A|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-002|Covered entities sha|SB 5827 §2(3)|Corporate Oversight|YES|Transparency|ai.risk.doc_complete|max(0, 100 - ai.tran|Your documentation g|20.0|Washington SB 5827|Covered entities sha|US-WA|Baseline
+WA-002|Covered entities sha|SB 5827 §2(3)|Corporate Oversight|YES|Transparency|ai.transparency.doc_|(completed_doc_secti|SB 5827 §2(3)|80.0|Washington SB 5827|Covered entities sha|US-WA|Baseline
+WA-003|Covered entities sha|SB 5827 §2(2)|Risk & Compliance|NO|Technical Documentat|NO_METRIC|NO_FORMULA|SB 5827 §2(2)|N/A|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-003|Covered entities sha|SB 5827 §2(2)|Risk & Compliance|NO|Record-Keeping|ai.records.audit_log|(verified_log_entrie|SB 5827 §2(2)|N/A|Washington SB 5827|Covered entities sha|US-WA|Not Baseline
+WA-003|Covered entities sha|SB 5827 §2(2)|Risk & Compliance|NO|Algorithmic Discrimi|NO_METRIC|NO_FORMULA|SB 5827 §2(2)|N/A|Washington SB 5827|Covered entities sha|US-WA|Not Baseline

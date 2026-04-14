@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useApp } from './context/AppContext.jsx';
 import DashboardsTab from './components/DashboardsTab.jsx';
 import CatalogSearchPanel from './components/CatalogSearchPanel.jsx';
 import AdminTab from './components/AdminTab.jsx';
+import AlignmentWeightsPanel from './components/AlignmentWeightsPanel.jsx';
+import HomePage from './components/HomePage.jsx';
 import { normalizeRiskTier } from './components/shared/TierBadge.jsx';
 
 const Icons = {
@@ -32,6 +34,12 @@ const Icons = {
       <path d="M10 19h4" />
     </svg>
   ),
+  Risk: () => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3 4.5 7v5.4c0 4.5 3 7.8 7.5 9.6 4.5-1.8 7.5-5.1 7.5-9.6V7L12 3z" />
+      <path d="M9 12.2 11.2 14.4 15.4 10.2" />
+    </svg>
+  ),
   Admin: () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 7h8" />
@@ -40,6 +48,22 @@ const Icons = {
       <circle cx="15" cy="7" r="2" />
       <circle cx="9" cy="12" r="2" />
       <circle cx="17" cy="17" r="2" />
+    </svg>
+  ),
+  AppSelect: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="7" height="6.5" rx="1.2" />
+      <rect x="13.5" y="5" width="7" height="6.5" rx="1.2" />
+      <rect x="8.5" y="14" width="7" height="6.5" rx="1.2" />
+      <path d="M10.5 8.2h3" />
+      <path d="M12 11.5v2.5" />
+    </svg>
+  ),
+  OpenApp: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 4h6v6" />
+      <path d="M10 14 20 4" />
+      <path d="M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5" />
     </svg>
   ),
   ChevronDown: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>,
@@ -61,6 +85,7 @@ const STEPS = [
   { num: 8, label: 'Solution Design' },
   { num: 9, label: 'System Performance' },
 ];
+
 
 function stepStatusTheme(status) {
   if (status === 'complete') {
@@ -87,16 +112,15 @@ function stepStatusTheme(status) {
   };
 }
 
-function fmtPercent(value) {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return 'N/A';
-  }
-  return `${Math.round(value * 100)}%`;
-}
-
 export default function App() {
   const { currentUser, canAdmin, selectedApp, selectApp } = useApp();
-  const [activeTab, setActiveTab] = useState('dashboards');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'home';
+    }
+    const hasAppQuery = new URLSearchParams(window.location.search).has('app_id');
+    return hasAppQuery ? 'dashboards' : 'home';
+  });
   const [requestedStep, setRequestedStep] = useState(null);
   const [dashboardUi, setDashboardUi] = useState({
     activeStep: null,
@@ -107,23 +131,116 @@ export default function App() {
     selectedAppId: null,
     totalKpis: null,
     complianceSummary: null,
+    activeControlByCategory: [],
+    systemSnapshot: null,
+    recentRequirementTicker: [],
   });
+  const [apps, setApps] = useState([]);
+  const [appSelectorOpen, setAppSelectorOpen] = useState(false);
+  const [appSelectorLoading, setAppSelectorLoading] = useState(false);
+  const [appFilterText, setAppFilterText] = useState('');
+  const queryAppHydratedRef = useRef(false);
+  const appSelectorRef = useRef(null);
+  const queryAppId = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    return new URLSearchParams(window.location.search).get('app_id');
+  }, []);
+
+  const upsertAppQueryParam = useCallback((appId) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const url = new URL(window.location.href);
+    if (appId) {
+      url.searchParams.set('app_id', appId);
+    } else {
+      url.searchParams.delete('app_id');
+    }
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+
+  const loadApps = useCallback(async () => {
+    setAppSelectorLoading(true);
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/applications');
+      const data = await res.json();
+      const activeApps = Array.isArray(data)
+        ? data.filter((app) => app?.status === 'active')
+        : [];
+      setApps(activeApps);
+
+      if (queryAppId && !queryAppHydratedRef.current) {
+        const matched = activeApps.find((app) => app.id === queryAppId);
+        if (matched) {
+          selectApp(matched);
+        }
+        queryAppHydratedRef.current = true;
+      } else if (selectedApp && selectedApp.status !== 'active' && activeApps.length > 0) {
+        selectApp(activeApps[0]);
+      }
+    } catch {
+      // no-op
+    } finally {
+      setAppSelectorLoading(false);
+    }
+  }, [queryAppId, selectApp, selectedApp]);
+
+  useEffect(() => {
+    loadApps();
+  }, [loadApps]);
+
+  useEffect(() => {
+    const onClickOutside = (event) => {
+      if (!appSelectorRef.current?.contains(event.target)) {
+        setAppSelectorOpen(false);
+      }
+    };
+    if (appSelectorOpen) {
+      window.addEventListener('mousedown', onClickOutside);
+    }
+    return () => window.removeEventListener('mousedown', onClickOutside);
+  }, [appSelectorOpen]);
+
+  const filteredApps = useMemo(() => {
+    const needle = appFilterText.trim().toLowerCase();
+    if (!needle) {
+      return apps;
+    }
+    return apps.filter((app) => {
+      const haystack = `${app?.name || ''} ${app?.id || ''} ${app?.owner_email || ''}`.toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [apps, appFilterText]);
+  const connectedAppUrl = useMemo(() => {
+    if (!selectedApp?.id) {
+      return null;
+    }
+    const returnUrl = encodeURIComponent(`http://localhost:5173/?app_id=${selectedApp.id}`);
+    return `http://localhost:8010/?app_id=${selectedApp.id}&return_url=${returnUrl}`;
+  }, [selectedApp?.id]);
 
   const goHome = () => {
-    setActiveTab('dashboards');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('app_id');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+    setActiveTab('home');
     setRequestedStep(null);
     setDashboardUi((prev) => ({
       ...prev,
       activeStep: null,
-      selectedAppId: null,
+      selectedAppId: selectedApp?.id || null,
     }));
-    selectApp(null);
   };
 
   const mainTabs = [
     { id: 'home', label: 'Home', Icon: Icons.Home },
-    { id: 'dashboards', label: 'Enterprise Dashboard', Icon: Icons.Dashboards },
-    { id: 'requirements', label: 'Governance Requirements', Icon: Icons.Requirements },
+    { id: 'requirements', label: 'Controls', Icon: Icons.Requirements },
+    ...(canAdmin ? [{ id: 'risk', label: 'Risk', Icon: Icons.Risk }] : []),
+    { id: 'dashboards', label: 'Governance', Icon: Icons.Dashboards },
   ];
   const adminTabs = canAdmin ? [{ id: 'admin', label: 'Admin', Icon: Icons.Admin }] : [];
 
@@ -137,12 +254,7 @@ export default function App() {
 
   const NavTab = ({ tab, color }) => {
     const isHomeTab = tab.id === 'home';
-    const isDashboardTab = tab.id === 'dashboards';
-    const isActive = isHomeTab
-      ? activeTab === 'dashboards' && !selectedApp
-      : isDashboardTab
-        ? activeTab === 'dashboards' && Boolean(selectedApp)
-        : activeTab === tab.id;
+    const isActive = activeTab === tab.id;
 
     const handleClick = () => {
       if (isHomeTab) {
@@ -178,15 +290,50 @@ export default function App() {
   };
 
   const renderTab = () => {
+    const handleHomeNavigate = (tabName) => {
+      const key = String(tabName || '').trim().toLowerCase();
+      if (key === 'controls') {
+        setActiveTab('requirements');
+        return;
+      }
+      if (key === 'governance') {
+        setActiveTab('dashboards');
+        return;
+      }
+      if (key === 'risk') {
+        if (canAdmin) {
+          setActiveTab('risk');
+        }
+        return;
+      }
+      if (key === 'applications') {
+        if (canAdmin) {
+          setActiveTab('admin');
+        }
+        return;
+      }
+    };
+
     switch (activeTab) {
+      case 'home':
+        return (
+          <>
+            <div style={{ display: 'none' }} aria-hidden="true">
+              <DashboardsTab requestedStep={null} onDashboardUiChange={setDashboardUi} mode="home" />
+            </div>
+            <HomePage onNavigate={handleHomeNavigate} />
+          </>
+        );
       case 'dashboards':
-        return <DashboardsTab requestedStep={requestedStep} onDashboardUiChange={setDashboardUi} />;
+        return <DashboardsTab requestedStep={requestedStep} onDashboardUiChange={setDashboardUi} mode="governance" />;
       case 'requirements':
         return <CatalogSearchPanel />;
+      case 'risk':
+        return canAdmin ? <AlignmentWeightsPanel /> : null;
       case 'admin':
         return canAdmin ? <AdminTab onNavigate={setActiveTab} /> : null;
       default:
-        return <DashboardsTab requestedStep={requestedStep} onDashboardUiChange={setDashboardUi} />;
+        return <DashboardsTab requestedStep={requestedStep} onDashboardUiChange={setDashboardUi} mode="governance" />;
     }
   };
 
@@ -218,10 +365,88 @@ export default function App() {
               {mainTabs.map((tab) => <NavTab key={tab.id} tab={tab} color={GOV_COLOR} />)}
             </div>
           </div>
+          <div className="nav-zone app-global-selector-zone" ref={appSelectorRef} style={{ marginLeft: 'auto', paddingRight: '0.5rem' }}>
+            <div className="app-global-selector-inline">
+              <button
+                type="button"
+                className={`app-global-selector-btn${appSelectorOpen ? ' open' : ''}`}
+                onClick={() => {
+                  const next = !appSelectorOpen;
+                  setAppSelectorOpen(next);
+                  if (next) {
+                    setAppFilterText('');
+                    loadApps();
+                  }
+                }}
+                title="Select connected application (global context)."
+              >
+                <span className="app-global-selector-icon">
+                  <Icons.AppSelect />
+                </span>
+                <span className="app-global-selector-copy">
+                  <span className="app-global-selector-label">Select App</span>
+                  <span className="app-global-selector-value">
+                    {selectedApp?.name || 'No app selected'}
+                  </span>
+                </span>
+                <Icons.ChevronDown />
+              </button>
+              <a
+                href={connectedAppUrl || '#'}
+                className={`app-global-open-btn${connectedAppUrl ? '' : ' disabled'}`}
+                onClick={(event) => {
+                  if (!connectedAppUrl) {
+                    event.preventDefault();
+                  }
+                }}
+                title={connectedAppUrl ? 'Open connected demo app' : 'Select an app first to open the demo app'}
+              >
+                <Icons.OpenApp />
+              </a>
+            </div>
+            {appSelectorOpen && (
+              <div className="app-global-selector-menu">
+                <div className="app-global-selector-filter-wrap">
+                  <input
+                    type="text"
+                    className="app-global-selector-filter"
+                    placeholder="Filter apps..."
+                    value={appFilterText}
+                    onChange={(event) => setAppFilterText(event.target.value)}
+                  />
+                </div>
+                <div className="app-global-selector-list">
+                  {appSelectorLoading ? (
+                    <div className="app-global-selector-empty">Loading apps...</div>
+                  ) : filteredApps.length ? (
+                    filteredApps.map((app) => (
+                      <button
+                        key={app.id}
+                        type="button"
+                        className={`app-global-selector-item${selectedApp?.id === app.id ? ' active' : ''}`}
+                        onClick={() => {
+                          selectApp(app);
+                          upsertAppQueryParam(app.id);
+                          setAppSelectorOpen(false);
+                        }}
+                      >
+                        <span className="app-global-selector-item-name">{app.name}</span>
+                        <span className="app-global-selector-item-meta">
+                          {normalizeRiskTier(app.current_tier) || 'Untiered'} - {app.status}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="app-global-selector-empty">No matching active apps.</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           {adminTabs.length > 0 && (
             <>
               <div className="nav-divider" />
-              <div className="nav-zone" style={{ marginLeft: 'auto', paddingRight: '0.5rem' }}>
+              <div className="nav-zone" style={{ paddingRight: '0.5rem' }}>
                 <div className="nav-zone-tabs">
                   {adminTabs.map((tab) => <NavTab key={tab.id} tab={tab} color={GOV_COLOR} />)}
                 </div>
@@ -234,7 +459,6 @@ export default function App() {
       <div className="app-body">
         {activeTab === 'dashboards' && (
           <AppSidebar
-            onNavigate={setActiveTab}
             onStepNavigate={(stepNum) => {
               setActiveTab('dashboards');
               setRequestedStep({ stepNum, token: Date.now() });
@@ -246,7 +470,15 @@ export default function App() {
           />
         )}
 
-        <main style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem', maxWidth: activeTab === 'dashboards' ? 'none' : 1200, margin: '0 auto', width: '100%' }}>
+        {activeTab === 'requirements' && (
+          <DashboardSidebar
+            dashboardUi={dashboardUi}
+            mode={activeTab}
+            onOpenControls={() => setActiveTab('requirements')}
+          />
+        )}
+
+        <main style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem', maxWidth: (activeTab === 'dashboards' || activeTab === 'home') ? 'none' : 1200, margin: '0 auto', width: '100%' }}>
           {renderTab()}
         </main>
       </div>
@@ -267,39 +499,19 @@ export default function App() {
   );
 }
 
-function AppSidebar({ onNavigate, onStepNavigate, activeStep, stepStatusByNum, dashboardUi }) {
-  const { selectedApp, selectApp } = useApp();
-  const [apps, setApps] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const loadApps = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:8000/api/v1/applications');
-      const data = await res.json();
-      const activeApps = Array.isArray(data)
-        ? data.filter((app) => app?.status === 'active')
-        : [];
-      setApps(activeApps);
-      if (selectedApp && selectedApp.status !== 'active' && activeApps.length > 0) {
-        selectApp(activeApps[0]);
-      }
-      setOpen(true);
-    } catch {
-      // no-op
-    } finally {
-      setLoading(false);
-    }
-  };
+function AppSidebar({ onStepNavigate, activeStep, stepStatusByNum, dashboardUi }) {
+  const { selectedApp } = useApp();
 
   const snapshot = dashboardUi.snapshot || {};
-  const currentTier = normalizeRiskTier(snapshot.tier?.current_tier || selectedApp?.current_tier) || 'N/A';
-  const complianceRate = (typeof dashboardUi.complianceSummary?.overall_pass_rate === 'number')
-    ? dashboardUi.complianceSummary.overall_pass_rate
-    : snapshot.compliance?.pass_rate;
-  const complianceValue = (typeof complianceRate === 'number')
-    ? `${fmtPercent(complianceRate)} pass`
+  const combinedCompliancePct = typeof dashboardUi.complianceSummary?.combined_category_avg_pct === 'number'
+    ? dashboardUi.complianceSummary.combined_category_avg_pct
+    : null;
+  const derivedRiskTier = normalizeRiskTier(dashboardUi.complianceSummary?.derived_risk_tier);
+  const currentTier = derivedRiskTier
+    || normalizeRiskTier(snapshot.tier?.current_tier || selectedApp?.current_tier)
+    || 'N/A';
+  const complianceValue = (typeof combinedCompliancePct === 'number')
+    ? `${Math.round(combinedCompliancePct)}%`
     : 'N/A';
   const kpiTotal = typeof dashboardUi.totalKpis === 'number' && dashboardUi.totalKpis > 0
     ? dashboardUi.totalKpis
@@ -308,66 +520,6 @@ function AppSidebar({ onNavigate, onStepNavigate, activeStep, stepStatusByNum, d
 
   return (
     <aside className="app-sidebar" style={{ padding: '1rem 0' }}>
-      <div style={{ padding: '0 0.75rem 0.75rem' }}>
-        <div className="sidebar-section-label" style={{ marginBottom: '0.5rem' }}>Connected App</div>
-        <button
-          onClick={loadApps}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0.5rem 0.75rem', border: '1px solid var(--border)', borderRadius: 8,
-            background: 'var(--surface-2)', cursor: 'pointer', fontFamily: 'inherit',
-            fontSize: '0.82rem', fontWeight: 500, color: 'var(--text-primary)',
-            transition: 'border-color 0.15s',
-          }}
-        >
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {selectedApp ? selectedApp.name : 'Select application...'}
-          </span>
-          <Icons.ChevronDown />
-        </button>
-
-        {open && (
-          <div style={{
-            position: 'absolute', zIndex: 50, left: 0, right: 0,
-            margin: '0 0.75rem', background: 'var(--surface)',
-            border: '1px solid var(--border)', borderRadius: 8,
-            boxShadow: 'var(--shadow-3)', maxHeight: 200, overflowY: 'auto',
-          }}>
-            {loading && <div style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>Loading...</div>}
-            {apps.length === 0 && !loading && (
-              <div style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
-                No apps registered.{' '}
-                <button
-                  onClick={() => { setOpen(false); onNavigate('admin'); }}
-                  style={{ color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textDecoration: 'underline' }}
-                >
-                  Register one {'->'}
-                </button>
-              </div>
-            )}
-            {apps.map((app) => (
-              <button
-                key={app.id}
-                onClick={() => { selectApp(app); setOpen(false); }}
-                style={{
-                  width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                  padding: '0.6rem 1rem', border: 'none', background: selectedApp?.id === app.id ? 'var(--un-blue-light)' : 'none',
-                  cursor: 'pointer', fontFamily: 'inherit', borderBottom: '1px solid var(--surface-3)',
-                  transition: 'background 0.15s',
-                }}
-              >
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>{app.name}</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
-                  {normalizeRiskTier(app.current_tier) || 'Untiered'} - {app.status}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="divider" style={{ margin: '0 0.75rem 0.75rem' }} />
-
       <div>
         <div className="sidebar-section-label" style={{ padding: '0 1.25rem', marginBottom: '0.4rem' }}>
           Governance Categories
@@ -394,13 +546,13 @@ function AppSidebar({ onNavigate, onStepNavigate, activeStep, stepStatusByNum, d
             Icon={Icons.Tier}
             label="Risk Tier"
             value={currentTier}
-            legend="Risk tier from the tier engine (domain, decision type, autonomy, and observed likelihood)."
+            legend="Risk tier recalculated from combined compliance score across all 9 governance categories."
           />
           <StatusMetricRow
             Icon={Icons.Compliance}
             label="Compliance"
             value={complianceValue}
-            legend="Overall pass rate across all loaded governance category KPI controls."
+            legend="Combined average compliance score across all 9 governance categories (equal weighting)."
           />
           <StatusMetricRow
             Icon={Icons.Kpi}
@@ -410,7 +562,6 @@ function AppSidebar({ onNavigate, onStepNavigate, activeStep, stepStatusByNum, d
           />
         </div>
       </div>
-
 
     </aside>
   );
@@ -450,6 +601,263 @@ function StatusMetricRow({ Icon, label, value, legend }) {
     </div>
   );
 }
+
+function DashboardSidebar({ dashboardUi, mode, onOpenControls }) {
+  const systemSnapshot = dashboardUi.systemSnapshot || {};
+  const activeControlsByCategory = Array.isArray(dashboardUi.activeControlByCategory)
+    ? dashboardUi.activeControlByCategory
+    : [];
+  const activeControlsSummary = activeControlsByCategory.reduce((acc, row) => {
+    acc.active += Number(row?.activeTotal || 0);
+    acc.inactive += Number(row?.inactiveTotal || 0);
+    return acc;
+  }, { active: 0, inactive: 0 });
+  const compactActiveRows = activeControlsByCategory
+    .map((row) => ({
+      category: String(row?.category || ''),
+      short: String(row?.category || '')
+        .replace(/^Risk\s*&\s*Compliance$/i, 'Risk')
+        .replace(/^Corporate\s+Oversight$/i, 'Oversight')
+        .replace(/^Technical\s+Architecture$/i, 'Architecture')
+        .replace(/^Data\s+Readiness$/i, 'Readiness')
+        .replace(/^Data\s+Integration$/i, 'Integration')
+        .replace(/^Solution\s+Design$/i, 'Design')
+        .replace(/^System\s+Performance$/i, 'Performance'),
+      active: Number(row?.activeTotal || 0),
+      inactive: Number(row?.inactiveTotal || 0),
+      total: Number(row?.total || 0),
+    }))
+    .filter((row) => row.total > 0);
+  const snapshotConnectedApps = Number(systemSnapshot.connectedApps || 0);
+  const snapshotBarMax = Math.max(1, snapshotConnectedApps, activeControlsSummary.active, activeControlsSummary.inactive);
+  const snapshotBars = [
+    {
+      key: 'apps',
+      label: 'Apps',
+      value: snapshotConnectedApps,
+      pct: Math.max(8, Math.round((snapshotConnectedApps / snapshotBarMax) * 100)),
+      color: 'linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%)',
+      legend: 'Total connected applications in the platform.',
+    },
+    {
+      key: 'active-controls',
+      label: 'Active',
+      value: activeControlsSummary.active,
+      pct: Math.max(8, Math.round((activeControlsSummary.active / snapshotBarMax) * 100)),
+      color: 'linear-gradient(180deg, #22c55e 0%, #16a34a 100%)',
+      legend: 'Total active controls across all categories.',
+    },
+    {
+      key: 'inactive-controls',
+      label: 'Inactive',
+      value: activeControlsSummary.inactive,
+      pct: Math.max(8, Math.round((activeControlsSummary.inactive / snapshotBarMax) * 100)),
+      color: 'linear-gradient(180deg, #94a3b8 0%, #64748b 100%)',
+      legend: 'Total inactive controls across all categories.',
+    },
+  ];
+
+  const recentTickerItems = Array.isArray(dashboardUi.recentRequirementTicker)
+    ? dashboardUi.recentRequirementTicker
+    : [];
+
+  if (mode === 'home') {
+    return (
+      <aside className="app-sidebar" style={{ padding: '0 0 0.8rem' }}>
+        <div>
+          <div className="sidebar-section-label" style={{ padding: '0.35rem 1.25rem 0 1.25rem', marginBottom: '0.35rem' }}>
+            TRENDING REQUIREMENTS
+          </div>
+          <div style={{ padding: '0 0.85rem' }}>
+            <div className="dashboard-sidebar-trending">
+              {recentTickerItems.length ? (
+                <div className="dashboard-sidebar-trending-window">
+                  <div className="dashboard-sidebar-trending-track">
+                    {[...recentTickerItems, ...recentTickerItems].map((item, idx) => (
+                      <div key={`sidebar-trending-${item?.id || 'req'}-${idx}`} className="dashboard-sidebar-trending-item">
+                        <div className="dashboard-sidebar-trending-item-header">
+                          <strong>{item?.title || 'Untitled requirement'}</strong>
+                          <button
+                            type="button"
+                            className="dashboard-sidebar-trending-open"
+                            onClick={() => {
+                              if (onOpenControls) onOpenControls();
+                            }}
+                            title="Open Controls tab"
+                            aria-label="Open Controls tab"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M14 4h6v6" />
+                              <path d="M10 14 20 4" />
+                              <path d="M20 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5" />
+                            </svg>
+                          </button>
+                        </div>
+                        <span>{item?.description || 'No description available.'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="dashboard-sidebar-trending-empty">
+                  No requirement updates available.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="app-sidebar" style={{ padding: '1rem 0' }}>
+      <div>
+        <div className="sidebar-section-label" style={{ padding: '0 1.25rem', marginBottom: '0.35rem' }}>
+          SYSTEM SNAPSHOT
+        </div>
+        <div style={{ padding: '0 0.85rem', display: 'grid', gap: '0.35rem' }}>
+          <div style={{
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(148,163,184,0.06) 100%)',
+            padding: '0.45rem 0.5rem',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              gap: '0.35rem',
+              height: 58,
+              marginBottom: '0.35rem',
+            }}>
+              {snapshotBars.map((bar) => (
+                <div key={bar.key} style={{ display: 'grid', gap: '0.18rem', justifyItems: 'center', flex: 1 }} title={bar.legend}>
+                  <div style={{
+                    width: 18,
+                    height: 44,
+                    borderRadius: 999,
+                    background: 'rgba(148,163,184,0.2)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                  }}>
+                    <span style={{ width: '100%', height: `${bar.pct}%`, background: bar.color, borderRadius: 999 }} />
+                  </div>
+                  <span style={{ fontSize: '0.62rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>{bar.label}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gap: '0.18rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
+                <span>Connected Apps</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{snapshotConnectedApps}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
+                <span>Active Controls</span>
+                <strong style={{ color: 'var(--success)' }}>{activeControlsSummary.active}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
+                <span>Inactive Controls</span>
+                <strong style={{ color: 'var(--text-tertiary)' }}>{activeControlsSummary.inactive}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="divider" style={{ margin: '0.75rem 0.75rem' }} />
+
+      <div>
+        <div className="sidebar-section-label" style={{ padding: '0 1.25rem', marginBottom: '0.35rem' }}>
+          ACTIVE CONTROLS
+        </div>
+        <div style={{
+          padding: '0 0.85rem',
+          display: 'grid',
+          gap: '0.35rem',
+        }}>
+          <div style={{
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            background: 'var(--surface-2)',
+            padding: '0.4rem 0.55rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '0.7rem',
+            color: 'var(--text-secondary)',
+          }}>
+            <span>Active: <strong style={{ color: 'var(--success)' }}>{activeControlsSummary.active}</strong></span>
+            <span>Inactive: <strong style={{ color: 'var(--text-tertiary)' }}>{activeControlsSummary.inactive}</strong></span>
+          </div>
+          {compactActiveRows.length ? (
+            compactActiveRows.map((row) => {
+              const total = Math.max(1, row.total);
+              const activePct = Math.round((row.active / total) * 100);
+              const inactivePct = Math.max(0, 100 - activePct);
+              return (
+                <div
+                  key={`dashboard-sidebar-active-controls-${row.category}`}
+                  title={`${row.category}: Active ${row.active}, Inactive ${row.inactive}`}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    background: 'var(--surface-2)',
+                    padding: '0.28rem 0.45rem',
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.66rem',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.18rem',
+                  }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{row.short}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row.active}/{row.total}</span>
+                  </div>
+                  <div style={{
+                    height: 5,
+                    width: '100%',
+                    borderRadius: 999,
+                    overflow: 'hidden',
+                    background: 'rgba(148, 163, 184, 0.26)',
+                    display: 'flex',
+                  }}>
+                    <span style={{ width: `${activePct}%`, background: 'linear-gradient(90deg, #22c55e, #16a34a)' }} />
+                    <span style={{ width: `${inactivePct}%`, background: 'rgba(148, 163, 184, 0.58)' }} />
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', padding: '0.2rem 0.15rem' }}>
+              No control activity yet.
+            </div>
+          )}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+DashboardSidebar.propTypes = {
+  dashboardUi: PropTypes.shape({
+    systemSnapshot: PropTypes.object,
+    activeControlByCategory: PropTypes.array,
+    recentRequirementTicker: PropTypes.array,
+  }),
+  mode: PropTypes.oneOf(['home', 'requirements']),
+  onOpenControls: PropTypes.func,
+};
+
+DashboardSidebar.defaultProps = {
+  dashboardUi: {},
+  mode: 'requirements',
+  onOpenControls: null,
+};
 
 function SidebarStep({ step, status, active, onSelect }) {
   const theme = stepStatusTheme(status);
@@ -505,7 +913,6 @@ StatusMetricRow.propTypes = {
 };
 
 AppSidebar.propTypes = {
-  onNavigate: PropTypes.func.isRequired,
   onStepNavigate: PropTypes.func.isRequired,
   activeStep: PropTypes.number,
   stepStatusByNum: PropTypes.instanceOf(Map),
@@ -520,6 +927,20 @@ AppSidebar.propTypes = {
       step1_total: PropTypes.number,
       step2_total: PropTypes.number,
       step2_pass_rate: PropTypes.number,
+      category_compliance_pct: PropTypes.object,
+      combined_category_avg_pct: PropTypes.number,
+      derived_risk_tier: PropTypes.string,
+    }),
+    activeControlByCategory: PropTypes.arrayOf(PropTypes.shape({
+      category: PropTypes.string,
+      activeTotal: PropTypes.number,
+      inactiveTotal: PropTypes.number,
+      total: PropTypes.number,
+    })),
+    systemSnapshot: PropTypes.shape({
+      connectedApps: PropTypes.number,
+      enterpriseRequirements: PropTypes.number,
+      policyTypes: PropTypes.arrayOf(PropTypes.string),
     }),
     snapshot: PropTypes.shape({
       tier: PropTypes.object,
@@ -535,7 +956,31 @@ AppSidebar.defaultProps = {
   dashboardUi: {
     totalKpis: null,
     complianceSummary: null,
+    activeControlByCategory: [],
+    systemSnapshot: null,
     snapshot: null,
+  },
+};
+
+DashboardSidebar.propTypes = {
+  dashboardUi: PropTypes.shape({
+    systemSnapshot: PropTypes.shape({
+      connectedApps: PropTypes.number,
+      enterpriseRequirements: PropTypes.number,
+      policyTypes: PropTypes.arrayOf(PropTypes.string),
+    }),
+    activeControlByCategory: PropTypes.arrayOf(PropTypes.shape({
+      category: PropTypes.string,
+      activeTotal: PropTypes.number,
+      inactiveTotal: PropTypes.number,
+      total: PropTypes.number,
+    })),
+  }),
+};
+
+DashboardSidebar.defaultProps = {
+  dashboardUi: {
+    systemSnapshot: null,
   },
 };
 
