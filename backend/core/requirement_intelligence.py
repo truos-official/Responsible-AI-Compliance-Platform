@@ -10,6 +10,7 @@ Capabilities:
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from difflib import SequenceMatcher
@@ -24,6 +25,60 @@ from adapters.llm.factory import get_llm_adapter
 _GRAPH_REQ_URI_PREFIX = "urn:aigov:requirement:"
 _GRAPH_RELATED_PREDICATE = "urn:aigov:predicate:semantically_related_requirement"
 _WORD_RE = re.compile(r"[a-z0-9]+")
+_GOVERNANCE_CATEGORIES = (
+    "Corporate Oversight",
+    "Risk & Compliance",
+    "Technical Architecture",
+    "Data Readiness",
+    "Data Integration",
+    "Security",
+    "Infrastructure",
+    "Solution Design",
+    "System Performance",
+)
+_CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "Corporate Oversight": (
+        "oversight", "committee", "executive", "governance", "accountability", "ownership",
+        "responsibility", "board", "leadership", "policy", "directive",
+    ),
+    "Risk & Compliance": (
+        "risk", "compliance", "conformance", "regulatory", "audit", "obligation",
+        "assessment", "classification", "controls",
+    ),
+    "Technical Architecture": (
+        "architecture", "retrieval", "citation", "grounding", "rag", "design pattern",
+        "model selection", "pipeline", "component",
+    ),
+    "Data Readiness": (
+        "data quality", "bias", "fairness", "label", "dataset", "readiness", "coverage",
+        "representative", "lineage", "provenance",
+    ),
+    "Data Integration": (
+        "integration", "ingest", "etl", "mapping", "schema", "interoperability", "connector",
+        "pipeline sync", "orchestration",
+    ),
+    "Security": (
+        "security", "pentest", "attack", "injection", "breach", "vulnerability", "encryption",
+        "access control", "threat", "adversarial",
+    ),
+    "Infrastructure": (
+        "latency", "availability", "uptime", "capacity", "cost", "token", "throughput",
+        "resource", "infrastructure", "compute",
+    ),
+    "Solution Design": (
+        "human oversight", "override", "explainability", "usability", "alignment", "safety",
+        "human-in-the-loop", "appeal", "decision support",
+    ),
+    "System Performance": (
+        "performance", "drift", "monitoring", "incident", "reliability", "error rate",
+        "accuracy", "precision", "recall", "kpi",
+    ),
+}
+_EMBEDDING_TEXT_MAX_CHARS = 1600
+_EMBEDDING_CACHE_MAX = 2048
+_embedding_cache: dict[str, list[float]] = {}
+_llm_adapter_cached: Any | None = None
+_llm_adapter_error = False
 
 
 @dataclass
@@ -64,6 +119,7 @@ class MetricCandidate:
 class RequirementDraftSuggestion:
     requirement_title: str
     requirement_description: str
+    governance_category: str
     control_title: str
     control_description: str
     risk_statement: str
@@ -95,11 +151,117 @@ def _seq_similarity(a: str | None, b: str | None) -> float:
     return SequenceMatcher(None, aa, bb).ratio()
 
 
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    if not a or not b:
+        return 0.0
+    size = min(len(a), len(b))
+    if size <= 0:
+        return 0.0
+    dot = 0.0
+    norm_a = 0.0
+    norm_b = 0.0
+    for idx in range(size):
+        av = float(a[idx])
+        bv = float(b[idx])
+        dot += av * bv
+        norm_a += av * av
+        norm_b += bv * bv
+    if norm_a <= 0 or norm_b <= 0:
+        return 0.0
+    score = dot / (math.sqrt(norm_a) * math.sqrt(norm_b))
+    return max(0.0, min(1.0, (score + 1.0) / 2.0))
+
+
+def _novelty_against_selected(candidate_tokens: set[str], selected_token_sets: list[set[str]]) -> float:
+    if not candidate_tokens or not selected_token_sets:
+        return 1.0
+    max_overlap = 0.0
+    for selected_tokens in selected_token_sets:
+        overlap = _jaccard(candidate_tokens, selected_tokens)
+        if overlap > max_overlap:
+            max_overlap = overlap
+    return max(0.0, 1.0 - max_overlap)
+
+
+def _diversify_related_rows(candidates: list[RelatedRequirement], limit: int) -> list[RelatedRequirement]:
+    if len(candidates) <= 1 or limit <= 1:
+        return candidates[: max(1, limit)]
+
+    pool = candidates[: min(len(candidates), max(limit * 8, 48))]
+    selected: list[RelatedRequirement] = []
+    selected_token_sets: list[set[str]] = []
+    selected_control_ids: set[str] = set()
+    selected_categories: set[str] = set()
+
+    while pool and len(selected) < limit:
+        best_index = 0
+        best_adjusted = -1.0
+        for index, row in enumerate(pool):
+            row_tokens = _tokens(f"{row.title} {row.description} {row.category} {row.control_title or ''}")
+            novelty = _novelty_against_selected(row_tokens, selected_token_sets)
+            category = _normalize_text(row.category)
+            control_id = (row.control_id or "").strip()
+            category_bonus = 0.04 if category and category not in selected_categories else 0.0
+            control_penalty = 0.07 if control_id and control_id in selected_control_ids else 0.0
+            adjusted = (0.74 * row.score) + (0.22 * novelty) + category_bonus - control_penalty
+            if adjusted > best_adjusted:
+                best_adjusted = adjusted
+                best_index = index
+
+        chosen = pool.pop(best_index)
+        chosen.score = round(max(0.0, min(1.0, best_adjusted)), 4)
+        selected.append(chosen)
+        selected_token_sets.append(_tokens(f"{chosen.title} {chosen.description} {chosen.category} {chosen.control_title or ''}"))
+        if chosen.control_id:
+            selected_control_ids.add(chosen.control_id)
+        normalized_category = _normalize_text(chosen.category)
+        if normalized_category:
+            selected_categories.add(normalized_category)
+
+    if len(selected) < limit:
+        for row in candidates:
+            if len(selected) >= limit:
+                break
+            if any(existing.requirement_id == row.requirement_id for existing in selected):
+                continue
+            selected.append(row)
+
+    return selected
+
+
+async def _embed_text_cached(text_value: str) -> list[float] | None:
+    normalized = _normalize_text(text_value)
+    if not normalized:
+        return None
+    key = normalized[:_EMBEDDING_TEXT_MAX_CHARS]
+    cached = _embedding_cache.get(key)
+    if cached is not None:
+        return cached
+    global _llm_adapter_cached, _llm_adapter_error
+    if _llm_adapter_error:
+        return None
+    try:
+        if _llm_adapter_cached is None:
+            _llm_adapter_cached = get_llm_adapter()
+        llm = _llm_adapter_cached
+        vector = await llm.embed(key)
+        if not isinstance(vector, list) or not vector:
+            return None
+        if len(_embedding_cache) >= _EMBEDDING_CACHE_MAX:
+            oldest_key = next(iter(_embedding_cache))
+            _embedding_cache.pop(oldest_key, None)
+        _embedding_cache[key] = vector
+        return vector
+    except Exception:
+        _llm_adapter_error = True
+        return None
+
+
 def _truncate(value: str, limit: int) -> str:
     compact = " ".join(value.split()).strip()
     if len(compact) <= limit:
         return compact
-    return compact[: max(0, limit - 1)].rstrip() + "…"
+    return compact[: max(0, limit - 3)].rstrip() + "..."
 
 
 def _safe_json_object(raw: str) -> dict[str, Any] | None:
@@ -121,6 +283,50 @@ def _safe_json_object(raw: str) -> dict[str, Any] | None:
         return parsed if isinstance(parsed, dict) else None
     except json.JSONDecodeError:
         return None
+
+
+def _canonical_governance_category(raw: str | None) -> str | None:
+    value = _normalize_text(raw)
+    if not value:
+        return None
+    aliases = {
+        "corporate oversight": "Corporate Oversight",
+        "risk and compliance": "Risk & Compliance",
+        "risk & compliance": "Risk & Compliance",
+        "risk classification": "Risk & Compliance",
+        "technical architecture": "Technical Architecture",
+        "data readiness": "Data Readiness",
+        "data integration": "Data Integration",
+        "security": "Security",
+        "infrastructure": "Infrastructure",
+        "solution design": "Solution Design",
+        "system performance": "System Performance",
+        "cost of ownership": "Corporate Oversight",
+    }
+    return aliases.get(value)
+
+
+def _infer_governance_category(*, requirement_description: str, policy_description: str) -> str:
+    req_blob = _normalize_text(requirement_description)
+    pol_blob = _normalize_text(policy_description)
+    if not req_blob and not pol_blob:
+        return "Risk & Compliance"
+    scores: dict[str, int] = {}
+    for category, keywords in _CATEGORY_KEYWORDS.items():
+        score = 0
+        for keyword in keywords:
+            normalized_kw = _normalize_text(keyword)
+            if not normalized_kw:
+                continue
+            # Requirement Description is primary signal; Policy Description is secondary context.
+            if normalized_kw in req_blob:
+                score += 2
+            if normalized_kw in pol_blob:
+                score += 1
+        scores[category] = score
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    top_category, top_score = ranked[0]
+    return top_category if top_score > 0 else "Risk & Compliance"
 
 
 async def _load_requirement_records(session: AsyncSession) -> list[RequirementRecord]:
@@ -264,19 +470,48 @@ async def find_related_requirements(
     min_score: float = 0.2,
 ) -> list[RelatedRequirement]:
     records = await _load_requirement_records(session)
+    query_blob = " ".join(
+        [
+            query_title or "",
+            query_description or "",
+            query_category or "",
+        ]
+    )
+    query_embedding = await _embed_text_cached(query_blob)
     related: list[RelatedRequirement] = []
     for item in records:
         if not item.requirement_id:
             continue
         if exclude_requirement_id and item.requirement_id == str(exclude_requirement_id):
             continue
-        score = _relatedness_score(
+        lexical_score = _relatedness_score(
             query_title=query_title,
             query_description=query_description,
             query_category=query_category or "",
             query_control_id=query_control_id,
             candidate=item,
         )
+        semantic_score = 0.0
+        if query_embedding is not None:
+            candidate_blob = " ".join(
+                [
+                    item.title or "",
+                    item.description or "",
+                    item.category or "",
+                    item.control_title or "",
+                    item.control_description or "",
+                ]
+            )
+            candidate_embedding = await _embed_text_cached(candidate_blob)
+            if candidate_embedding is not None:
+                semantic_score = _cosine_similarity(query_embedding, candidate_embedding)
+
+        score = (
+            (0.58 * lexical_score) + (0.42 * semantic_score)
+            if query_embedding is not None
+            else lexical_score
+        )
+        score = round(max(0.0, min(1.0, score)), 4)
         if score < min_score:
             continue
         related.append(
@@ -292,32 +527,28 @@ async def find_related_requirements(
             )
         )
     related.sort(key=lambda row: row.score, reverse=True)
-    return related[: max(1, limit)]
+    return _diversify_related_rows(related, max(1, limit))
 
 
 async def _generate_llm_draft(
     *,
-    policy_title: str,
     policy_description: str,
-    governance_category: str,
-    requirement_hint: str,
-    risk_statement_hint: str,
+    requirement_description: str,
 ) -> dict[str, Any] | None:
     prompt = (
         "You generate concise enterprise governance requirement drafts.\n"
         "Return STRICT JSON only with keys:\n"
-        '  requirement_title, requirement_description, control_title, control_description, risk_statement\n'
+        '  requirement_title, requirement_description, governance_category, control_title, control_description, risk_statement\n'
         "Rules:\n"
+        "- governance_category must be exactly one of: "
+        + ", ".join(_GOVERNANCE_CATEGORIES) + "\n"
         "- requirement_title <= 250 chars\n"
         "- requirement_description <= 700 chars\n"
         "- control_title <= 160 chars\n"
         "- control_description <= 700 chars\n"
         "- keep language plain English and implementation-oriented\n\n"
-        f"Governance category: {governance_category}\n"
-        f"Policy title: {policy_title}\n"
         f"Policy description: {policy_description}\n"
-        f"Requirement hint: {requirement_hint}\n"
-        f"Risk statement hint: {risk_statement_hint}\n"
+        f"Requirement description: {requirement_description}\n"
     )
     system = (
         "You are an AI governance analyst. "
@@ -341,21 +572,22 @@ async def _generate_llm_draft(
 
 def _heuristic_draft(
     *,
-    policy_title: str,
     policy_description: str,
-    governance_category: str,
-    requirement_hint: str,
-    risk_statement_hint: str,
+    requirement_description: str,
 ) -> dict[str, str]:
-    source = requirement_hint.strip() or policy_description.strip() or policy_title.strip()
+    governance_category = _infer_governance_category(
+        requirement_description=requirement_description,
+        policy_description=policy_description,
+    )
+    source = requirement_description.strip() or policy_description.strip()
     fallback_title = _truncate(source or f"{governance_category} conformance requirement", 250)
     if not fallback_title:
         fallback_title = f"{governance_category} conformance requirement"
 
     fallback_description = _truncate(
-        policy_description.strip()
-        or f"Ensure the application conforms to governance obligations under {policy_title.strip() or 'the selected policy'} "
-        f"for {governance_category}.",
+        requirement_description.strip()
+        or policy_description.strip()
+        or f"Ensure the application conforms to governance obligations for {governance_category}.",
         700,
     )
     fallback_control_title = _truncate(
@@ -366,15 +598,12 @@ def _heuristic_draft(
         f"Track objective evidence that the requirement '{fallback_title}' is implemented and continuously monitored.",
         700,
     )
-    fallback_risk = _truncate(
-        risk_statement_hint.strip()
-        or f"Non-conformance may increase governance exposure in {governance_category}.",
-        700,
-    )
+    fallback_risk = _truncate(f"Non-conformance may increase governance exposure in {governance_category}.", 700)
 
     return {
         "requirement_title": fallback_title,
         "requirement_description": fallback_description,
+        "governance_category": governance_category,
         "control_title": fallback_control_title,
         "control_description": fallback_control_description,
         "risk_statement": fallback_risk,
@@ -400,34 +629,28 @@ def _metric_match_score(
 async def suggest_requirement_draft(
     session: AsyncSession,
     *,
-    policy_title: str,
     policy_description: str,
-    governance_category: str,
-    requirement_hint: str = "",
-    risk_statement_hint: str = "",
+    requirement_description: str,
     preferred_related_limit: int = 8,
     use_llm: bool = True,
 ) -> tuple[RequirementDraftSuggestion, list[RelatedRequirement]]:
     llm_payload: dict[str, Any] | None = None
     if use_llm:
         llm_payload = await _generate_llm_draft(
-            policy_title=policy_title,
             policy_description=policy_description,
-            governance_category=governance_category,
-            requirement_hint=requirement_hint,
-            risk_statement_hint=risk_statement_hint,
+            requirement_description=requirement_description,
         )
 
     heuristic = _heuristic_draft(
-        policy_title=policy_title,
         policy_description=policy_description,
-        governance_category=governance_category,
-        requirement_hint=requirement_hint,
-        risk_statement_hint=risk_statement_hint,
+        requirement_description=requirement_description,
     )
+    llm_category = _canonical_governance_category((llm_payload or {}).get("governance_category"))
+    inferred_category = llm_category or heuristic["governance_category"]
     merged = {
         "requirement_title": _truncate(str((llm_payload or {}).get("requirement_title") or heuristic["requirement_title"]), 250),
         "requirement_description": _truncate(str((llm_payload or {}).get("requirement_description") or heuristic["requirement_description"]), 700),
+        "governance_category": inferred_category,
         "control_title": _truncate(str((llm_payload or {}).get("control_title") or heuristic["control_title"]), 160),
         "control_description": _truncate(str((llm_payload or {}).get("control_description") or heuristic["control_description"]), 700),
         "risk_statement": _truncate(str((llm_payload or {}).get("risk_statement") or heuristic["risk_statement"]), 700),
@@ -439,16 +662,10 @@ async def suggest_requirement_draft(
             merged["requirement_description"],
             merged["control_title"],
             merged["control_description"],
-            governance_category,
-            policy_title,
+            merged["governance_category"],
         ]
     )
-    metric_candidates = await _load_metric_candidates(
-        session,
-        governance_category=governance_category,
-    )
-    if not metric_candidates:
-        metric_candidates = await _load_metric_candidates(session)
+    metric_candidates = await _load_metric_candidates(session)
 
     metric_name: str | None = None
     control_measure_type = "evidence_based"
@@ -457,7 +674,7 @@ async def suggest_requirement_draft(
     if metric_candidates:
         ranked = sorted(
             [
-                (candidate, _metric_match_score(metric=candidate, query_text=query_blob, query_category=governance_category))
+                (candidate, _metric_match_score(metric=candidate, query_text=query_blob, query_category=merged["governance_category"]))
                 for candidate in metric_candidates
             ],
             key=lambda item: item[1],
@@ -477,7 +694,7 @@ async def suggest_requirement_draft(
         session,
         query_title=merged["requirement_title"],
         query_description=merged["requirement_description"],
-        query_category=governance_category,
+        query_category=merged["governance_category"],
         limit=preferred_related_limit,
         min_score=0.18,
     )
@@ -491,6 +708,7 @@ async def suggest_requirement_draft(
     suggestion = RequirementDraftSuggestion(
         requirement_title=merged["requirement_title"],
         requirement_description=merged["requirement_description"],
+        governance_category=merged["governance_category"],
         control_title=merged["control_title"],
         control_description=merged["control_description"],
         risk_statement=merged["risk_statement"],
@@ -536,4 +754,3 @@ async def sync_related_requirements_graph(
         return True
     except Exception:
         return False
-

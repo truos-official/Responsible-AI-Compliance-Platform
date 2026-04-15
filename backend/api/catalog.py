@@ -15,6 +15,8 @@ Phase 3 implementation. MCP server (mcp/server.py) exposes these via 5 catalog t
 """
 import os
 import json
+import math
+import re
 from typing import Any, Literal
 from uuid import UUID, uuid4
 from datetime import datetime
@@ -25,6 +27,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.search.factory import get_search_adapter
+from adapters.llm.factory import get_llm_adapter
 from core.requirement_intelligence import (
     find_related_requirements,
     suggest_requirement_draft,
@@ -33,6 +36,173 @@ from core.requirement_intelligence import (
 from db.session import get_db_session
 
 router = APIRouter(tags=["catalog"])
+_SUGGESTION_MIN_WORDS = 6
+_WORD_TOKEN_RE = re.compile(r"\b\w+\b")
+_POLICY_EMBED_CACHE_MAX = 1024
+_POLICY_EMBED_TEXT_MAX_CHARS = 1400
+_policy_embedding_cache: dict[str, list[float]] = {}
+_policy_llm_adapter_cached: Any | None = None
+_policy_llm_adapter_error = False
+
+
+def _word_count(value: str) -> int:
+    return len(_WORD_TOKEN_RE.findall(str(value or "")))
+
+
+def _normalize_text(value: str | None) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _token_set(value: str | None) -> set[str]:
+    return set(_WORD_TOKEN_RE.findall(_normalize_text(value)))
+
+
+def _jaccard_similarity(a: set[str], b: set[str]) -> float:
+    if not a or not b:
+        return 0.0
+    return len(a.intersection(b)) / len(a.union(b))
+
+
+def _seq_similarity(a: str | None, b: str | None) -> float:
+    aa = _normalize_text(a)
+    bb = _normalize_text(b)
+    if not aa or not bb:
+        return 0.0
+    # Local import keeps startup lightweight.
+    from difflib import SequenceMatcher
+
+    return SequenceMatcher(None, aa, bb).ratio()
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    if not a or not b:
+        return 0.0
+    size = min(len(a), len(b))
+    if size <= 0:
+        return 0.0
+    dot = 0.0
+    norm_a = 0.0
+    norm_b = 0.0
+    for idx in range(size):
+        av = float(a[idx])
+        bv = float(b[idx])
+        dot += av * bv
+        norm_a += av * av
+        norm_b += bv * bv
+    if norm_a <= 0 or norm_b <= 0:
+        return 0.0
+    score = dot / (math.sqrt(norm_a) * math.sqrt(norm_b))
+    return max(0.0, min(1.0, (score + 1.0) / 2.0))
+
+
+async def _embed_text_cached(text_value: str) -> list[float] | None:
+    normalized = _normalize_text(text_value)
+    if not normalized:
+        return None
+    key = normalized[:_POLICY_EMBED_TEXT_MAX_CHARS]
+    cached = _policy_embedding_cache.get(key)
+    if cached is not None:
+        return cached
+    global _policy_llm_adapter_cached, _policy_llm_adapter_error
+    if _policy_llm_adapter_error:
+        return None
+    try:
+        if _policy_llm_adapter_cached is None:
+            _policy_llm_adapter_cached = get_llm_adapter()
+        llm = _policy_llm_adapter_cached
+        vector = await llm.embed(key)
+        if not isinstance(vector, list) or not vector:
+            return None
+        if len(_policy_embedding_cache) >= _POLICY_EMBED_CACHE_MAX:
+            oldest = next(iter(_policy_embedding_cache))
+            _policy_embedding_cache.pop(oldest, None)
+        _policy_embedding_cache[key] = vector
+        return vector
+    except Exception:
+        _policy_llm_adapter_error = True
+        return None
+
+
+def _policy_lexical_score(query: str, candidate: str) -> float:
+    token_score = _jaccard_similarity(_token_set(query), _token_set(candidate))
+    seq_score = _seq_similarity(query, candidate)
+    return max(0.0, min(1.0, (0.62 * token_score) + (0.38 * seq_score)))
+
+
+def _policy_row_text(row: dict[str, Any]) -> str:
+    return " ".join(
+        [
+            str(row.get("title") or ""),
+            str(row.get("description") or ""),
+            str(row.get("source") or ""),
+            str(row.get("jurisdiction") or ""),
+            str(row.get("policy_type") or ""),
+        ]
+    )
+
+
+def _diversify_policy_rows(
+    scored_rows: list[tuple[dict[str, Any], float, float]],
+    limit: int,
+) -> list[tuple[dict[str, Any], float, float]]:
+    if not scored_rows:
+        return []
+    if len(scored_rows) <= limit:
+        return scored_rows[: max(1, limit)]
+
+    candidate_pool = scored_rows[: min(len(scored_rows), max(limit * 8, 48))]
+    selected: list[tuple[dict[str, Any], float, float]] = []
+    selected_token_sets: list[set[str]] = []
+    used_types: set[str] = set()
+    used_jurisdictions: set[str] = set()
+    selected_ids: set[str] = set()
+
+    while candidate_pool and len(selected) < limit:
+        best_index = 0
+        best_adjusted = -1.0
+        for index, (row, base_score, semantic_score) in enumerate(candidate_pool):
+            row_tokens = _token_set(_policy_row_text(row))
+            if not selected_token_sets:
+                novelty = 1.0
+            else:
+                max_overlap = 0.0
+                for selected_tokens in selected_token_sets:
+                    overlap = _jaccard_similarity(row_tokens, selected_tokens)
+                    if overlap > max_overlap:
+                        max_overlap = overlap
+                novelty = max(0.0, 1.0 - max_overlap)
+            type_key = _normalize_text(row.get("policy_type"))
+            jurisdiction_key = _normalize_text(row.get("jurisdiction"))
+            type_bonus = 0.03 if type_key and type_key not in used_types else 0.0
+            jurisdiction_bonus = 0.02 if jurisdiction_key and jurisdiction_key not in used_jurisdictions else 0.0
+            adjusted = (0.76 * base_score) + (0.22 * novelty) + type_bonus + jurisdiction_bonus
+            if adjusted > best_adjusted:
+                best_adjusted = adjusted
+                best_index = index
+
+        row, _, semantic_score = candidate_pool.pop(best_index)
+        selected.append((row, round(max(0.0, min(1.0, best_adjusted)), 4), semantic_score))
+        selected_token_sets.append(_token_set(_policy_row_text(row)))
+        row_id = str(row.get("id") or "").strip()
+        if row_id:
+            selected_ids.add(row_id)
+        type_key = _normalize_text(row.get("policy_type"))
+        if type_key:
+            used_types.add(type_key)
+        jurisdiction_key = _normalize_text(row.get("jurisdiction"))
+        if jurisdiction_key:
+            used_jurisdictions.add(jurisdiction_key)
+
+    if len(selected) < limit:
+        for row, score, semantic_score in scored_rows:
+            if len(selected) >= limit:
+                break
+            row_id = str(row.get("id") or "").strip()
+            if row_id and row_id in selected_ids:
+                continue
+            selected.append((row, score, semantic_score))
+
+    return selected
 
 
 class ControlListItem(BaseModel):
@@ -304,18 +474,14 @@ class RequirementRelatedResponse(BaseModel):
 
 
 class AdminRequirementSuggestRequest(BaseModel):
-    policy_title: str = Field(..., min_length=2, max_length=280)
     policy_description: str = Field(..., min_length=2, max_length=4000)
-    governance_category: str = Field(..., min_length=2, max_length=120)
-    requirement_hint: str = Field(default="", max_length=1200)
-    risk_statement_hint: str = Field(default="", max_length=1000)
+    requirement_description: str = Field(..., min_length=2, max_length=1200)
     use_llm: bool = True
     limit: int = Field(default=8, ge=1, le=20)
 
     @field_validator(
-        "policy_title",
         "policy_description",
-        "governance_category",
+        "requirement_description",
         mode="before",
     )
     @classmethod
@@ -325,10 +491,21 @@ class AdminRequirementSuggestRequest(BaseModel):
             raise ValueError(f"{info.field_name} is required")
         return text_value
 
+    @field_validator("policy_description", "requirement_description")
+    @classmethod
+    def _suggest_minimum_words(cls, value: str, info: ValidationInfo) -> str:
+        count = _word_count(value)
+        if count < _SUGGESTION_MIN_WORDS:
+            raise ValueError(
+                f"{info.field_name} must include at least {_SUGGESTION_MIN_WORDS} words for semantic recommendations"
+            )
+        return value
+
 
 class AdminRequirementSuggestResponse(BaseModel):
     requirement_title: str
     requirement_description: str
+    governance_category: str
     control_title: str
     control_description: str
     risk_statement: str
@@ -1138,7 +1315,9 @@ async def admin_search_policies(
     _admin_scope: None = Depends(require_governance_admin_scope),
     session: AsyncSession = Depends(get_db_session),
 ) -> AdminPolicySearchResponse:
-    query = f"%{q.strip()}%"
+    query_text = q.strip()
+    query = f"%{query_text}%"
+    lexical_limit = min(max(limit * 6, 60), 240)
     rows_result = await session.execute(
         text(
             """
@@ -1162,8 +1341,60 @@ async def admin_search_policies(
             LIMIT :limit
             """
         ),
-        {"query": query, "limit": limit},
+        {"query": query, "limit": lexical_limit},
     )
+    rows = rows_result.mappings().all()
+    if not rows:
+        fallback_result = await session.execute(
+            text(
+                """
+                SELECT
+                    reg.id::text AS id,
+                    reg.title AS title,
+                    reg.jurisdiction AS jurisdiction,
+                    reg.source AS source,
+                    reg.description AS description,
+                    reg.policy_type AS policy_type,
+                    reg.policy_status AS policy_status,
+                    COUNT(r.id) AS requirement_count
+                FROM regulation reg
+                LEFT JOIN requirement r ON r.regulation_id = reg.id
+                GROUP BY reg.id, reg.title, reg.jurisdiction, reg.source, reg.description, reg.policy_type, reg.policy_status
+                ORDER BY reg.title
+                LIMIT :limit
+                """
+            ),
+            {"limit": lexical_limit},
+        )
+        rows = fallback_result.mappings().all()
+    if not rows:
+        return AdminPolicySearchResponse(items=[], total=0)
+
+    scored_rows: list[tuple[dict[str, Any], float, float]] = []
+    for row in rows:
+        row_text = _policy_row_text(row)
+        lexical_score = _policy_lexical_score(query_text, row_text)
+        scored_rows.append((row, lexical_score, 0.0))
+
+    scored_rows.sort(key=lambda item: item[1], reverse=True)
+    semantic_pool_size = min(40, len(scored_rows))
+    semantic_pool = scored_rows[:semantic_pool_size]
+    query_embedding = await _embed_text_cached(query_text)
+    if query_embedding is not None:
+        reranked_pool: list[tuple[dict[str, Any], float, float]] = []
+        for row, lexical_score, _ in semantic_pool:
+            row_text = _policy_row_text(row)
+            row_embedding = await _embed_text_cached(row_text)
+            semantic_score = _cosine_similarity(query_embedding, row_embedding) if row_embedding is not None else 0.0
+            hybrid = (0.56 * lexical_score) + (0.44 * semantic_score)
+            reranked_pool.append((row, hybrid, semantic_score))
+        reranked_pool.sort(key=lambda item: item[1], reverse=True)
+        scored_rows = reranked_pool + scored_rows[semantic_pool_size:]
+    else:
+        scored_rows = [(row, score, sem) for row, score, sem in scored_rows]
+
+    top_rows = _diversify_policy_rows(scored_rows, limit)
+
     items = [
         AdminPolicySearchItem(
             id=row["id"],
@@ -1175,7 +1406,7 @@ async def admin_search_policies(
             policy_status=row.get("policy_status"),
             requirement_count=int(row.get("requirement_count") or 0),
         )
-        for row in rows_result.mappings().all()
+        for row, _, _ in top_rows
     ]
     return AdminPolicySearchResponse(items=items, total=len(items))
 
@@ -1232,17 +1463,15 @@ async def admin_suggest_requirement(
 ) -> AdminRequirementSuggestResponse:
     suggestion, related_rows = await suggest_requirement_draft(
         session,
-        policy_title=payload.policy_title,
         policy_description=payload.policy_description,
-        governance_category=payload.governance_category,
-        requirement_hint=payload.requirement_hint,
-        risk_statement_hint=payload.risk_statement_hint,
+        requirement_description=payload.requirement_description,
         preferred_related_limit=payload.limit,
         use_llm=payload.use_llm,
     )
     return AdminRequirementSuggestResponse(
         requirement_title=suggestion.requirement_title,
         requirement_description=suggestion.requirement_description,
+        governance_category=suggestion.governance_category,
         control_title=suggestion.control_title,
         control_description=suggestion.control_description,
         risk_statement=suggestion.risk_statement,

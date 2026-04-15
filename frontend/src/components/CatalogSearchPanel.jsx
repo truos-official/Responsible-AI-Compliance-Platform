@@ -18,6 +18,7 @@ import { useApp } from "../context/AppContext";
 
 const PAGE_SIZE = 5;
 const REQUIREMENTS_PAGE_LIMIT = 200;
+const MIN_SEMANTIC_WORDS = 6;
 
 const STEP_BY_CATEGORY = {
   "Corporate Oversight": 1,
@@ -104,6 +105,12 @@ function normalizeText(value) {
     .replace(/[^a-z0-9 ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function countWords(value) {
+  const text = String(value || "").trim();
+  if (!text) return 0;
+  return text.split(/\s+/).filter(Boolean).length;
 }
 
 function canonicalGovernanceCategory(value) {
@@ -601,11 +608,12 @@ function CatalogSearchPanel() {
   const [metricFilterQuery, setMetricFilterQuery] = useState("");
   const [adminDraft, setAdminDraft] = useState(createEmptyAdminDraft(selectedApp?.id || ""));
   const [adminDraftTouched, setAdminDraftTouched] = useState({});
+  const adminDraftTouchedRef = useRef({});
   const [semanticSuggestion, setSemanticSuggestion] = useState(null);
   const [semanticRelatedDraft, setSemanticRelatedDraft] = useState([]);
   const [loadingSemanticSuggestion, setLoadingSemanticSuggestion] = useState(false);
   const [semanticSuggestionError, setSemanticSuggestionError] = useState("");
-  const [lastSemanticRequestKey, setLastSemanticRequestKey] = useState("");
+  const lastSemanticRequestKeyRef = useRef("");
   const semanticSuggestionRequestSeq = useRef(0);
   const [policySuggestions, setPolicySuggestions] = useState([]);
   const [loadingPolicySuggestions, setLoadingPolicySuggestions] = useState(false);
@@ -623,6 +631,11 @@ function CatalogSearchPanel() {
     ),
     [isGlobalAdmin, isCreatingRequirement, selectedItem?.id],
   );
+
+  useEffect(() => {
+    adminDraftTouchedRef.current = adminDraftTouched || {};
+  }, [adminDraftTouched]);
+
   const maxAdminFormStep = ADMIN_FORM_STEPS.length;
   const selectedTelemetryMetric = useMemo(
     () => availableTelemetryMetrics.find((metric) => metric.value === adminDraft.metric_name) || null,
@@ -1403,7 +1416,7 @@ function CatalogSearchPanel() {
     setSemanticSuggestion(null);
     setSemanticRelatedDraft([]);
     setSemanticSuggestionError("");
-    setLastSemanticRequestKey("");
+    lastSemanticRequestKeyRef.current = "";
     setPolicySuggestions([]);
     setPolicySuggestionError("");
   }
@@ -1561,7 +1574,7 @@ function CatalogSearchPanel() {
     setSemanticSuggestion(null);
     setSemanticRelatedDraft([]);
     setSemanticSuggestionError("");
-    setLastSemanticRequestKey("");
+    lastSemanticRequestKeyRef.current = "";
     setAdminDraftTouched({});
     setPolicySuggestions([]);
     setPolicySuggestionError("");
@@ -1663,7 +1676,7 @@ function CatalogSearchPanel() {
     setSemanticSuggestion(null);
     setSemanticRelatedDraft([]);
     setSemanticSuggestionError("");
-    setLastSemanticRequestKey("");
+    lastSemanticRequestKeyRef.current = "";
     setPolicySuggestions([]);
     setPolicySuggestionError("");
   }
@@ -1940,37 +1953,37 @@ function CatalogSearchPanel() {
     if (!createMode || !isGlobalAdmin) return;
     if (!selectedItem || String(selectedItem?.id || "") !== "__new__") return;
 
-    const policyTitle = String(adminDraft.policy_title || "").trim();
     const policyDescription = String(adminDraft.policy_description || "").trim();
-    const governanceCategory = String(adminDraft.governance_category || "").trim();
-    const riskStatementHint = String(adminDraft.risk_statement || "").trim();
-    const requirementHint = String(adminDraft.requirement_title || "").trim()
-      || String(adminDraft.requirement_description || "").trim();
+    const requirementDescription = String(adminDraft.requirement_description || "").trim();
+    const requirementWords = countWords(requirementDescription);
+    const policyWords = countWords(policyDescription);
+    const requirementHint = requirementDescription;
 
-    if (!governanceCategory) return;
-    if (policyDescription.length < 30 && requirementHint.length < 16) return;
+    if (requirementWords < MIN_SEMANTIC_WORDS || policyWords < MIN_SEMANTIC_WORDS) {
+      setSemanticSuggestion(null);
+      setSemanticRelatedDraft([]);
+      setSemanticSuggestionError("");
+      lastSemanticRequestKeyRef.current = "";
+      return;
+    }
 
     const requestKey = JSON.stringify({
-      policyTitle,
       policyDescription,
-      governanceCategory,
-      riskStatementHint,
+      requirementDescription,
+      requirementHint,
       useLLM: true,
     });
-    if (requestKey === lastSemanticRequestKey) return;
+    if (requestKey === lastSemanticRequestKeyRef.current) return;
 
     const timer = setTimeout(async () => {
       const requestSeq = ++semanticSuggestionRequestSeq.current;
-      setLastSemanticRequestKey(requestKey);
+      lastSemanticRequestKeyRef.current = requestKey;
       setLoadingSemanticSuggestion(true);
       setSemanticSuggestionError("");
       try {
         const suggestion = await suggestAdminRequirementDraft({
-          policy_title: policyTitle || "Draft Policy",
           policy_description: policyDescription || requirementHint || "Draft governance requirement",
-          governance_category: governanceCategory,
-          requirement_hint: requirementHint,
-          risk_statement_hint: riskStatementHint,
+          requirement_description: requirementHint,
           use_llm: true,
           limit: 8,
         });
@@ -1985,7 +1998,8 @@ function CatalogSearchPanel() {
         setAdminDraft((prev) => {
           const next = { ...prev };
           const canReplace = (fieldName, currentValue) => {
-            const untouched = !adminDraftTouched?.[fieldName];
+            const touchedState = adminDraftTouchedRef.current || {};
+            const untouched = !touchedState?.[fieldName];
             const empty = !String(currentValue || "").trim() || String(currentValue || "").trim() === "New Requirement";
             return untouched || empty;
           };
@@ -1995,6 +2009,9 @@ function CatalogSearchPanel() {
           }
           if (canReplace("requirement_description", prev.requirement_description) && suggestion?.requirement_description) {
             next.requirement_description = suggestion.requirement_description;
+          }
+          if (canReplace("governance_category", prev.governance_category) && suggestion?.governance_category) {
+            next.governance_category = canonicalGovernanceCategory(suggestion.governance_category) || prev.governance_category;
           }
           if (canReplace("risk_statement", prev.risk_statement) && suggestion?.risk_statement) {
             next.risk_statement = suggestion.risk_statement;
@@ -2006,7 +2023,7 @@ function CatalogSearchPanel() {
             next.control_description = suggestion.control_description;
           }
           if (
-            !adminDraftTouched?.control_measure_type
+            !(adminDraftTouchedRef.current || {})?.control_measure_type
             && suggestion?.control_measure_type
           ) {
             next.control_measure_type = suggestion.control_measure_type;
@@ -2023,8 +2040,13 @@ function CatalogSearchPanel() {
       } catch (err) {
         if (requestSeq !== semanticSuggestionRequestSeq.current) return;
         const detail = err?.response?.data?.detail;
+        const detailMessage = Array.isArray(detail)
+          ? String(detail?.[0]?.msg || detail?.[0]?.message || "")
+          : "";
         setSemanticSuggestionError(
-          typeof detail === "string" ? detail : "Semantic suggestion is temporarily unavailable.",
+          typeof detail === "string"
+            ? detail
+            : (detailMessage || "Semantic suggestion is temporarily unavailable."),
         );
       } finally {
         if (requestSeq === semanticSuggestionRequestSeq.current) {
@@ -2040,22 +2062,20 @@ function CatalogSearchPanel() {
     createMode,
     isGlobalAdmin,
     selectedItem?.id,
-    adminDraft.policy_title,
     adminDraft.policy_description,
-    adminDraft.governance_category,
-    adminDraft.risk_statement,
-    adminDraft.requirement_title,
     adminDraft.requirement_description,
-    lastSemanticRequestKey,
   ]);
 
   useEffect(() => {
     if (!createMode || !isGlobalAdmin) return;
     if (!selectedItem || String(selectedItem?.id || "") !== "__new__") return;
 
-    const query = String(adminDraft.policy_title || "").trim()
-      || String(adminDraft.policy_description || "").trim().slice(0, 180);
-    if (query.length < 3) {
+    const requirementDescription = String(adminDraft.requirement_description || "").trim();
+    const policyDescription = String(adminDraft.policy_description || "").trim();
+    const requirementWords = countWords(requirementDescription);
+    const policyWords = countWords(policyDescription);
+    const query = `${requirementDescription} ${policyDescription}`.trim().slice(0, 220);
+    if (requirementWords < MIN_SEMANTIC_WORDS || policyWords < MIN_SEMANTIC_WORDS) {
       setPolicySuggestions([]);
       setPolicySuggestionError("");
       return;
@@ -2090,7 +2110,7 @@ function CatalogSearchPanel() {
     createMode,
     isGlobalAdmin,
     selectedItem?.id,
-    adminDraft.policy_title,
+    adminDraft.requirement_description,
     adminDraft.policy_description,
   ]);
 
@@ -2569,6 +2589,8 @@ function CatalogSearchPanel() {
   const avgRiskLevelPct = Number.isFinite(populationOverview.avgTierLevel)
     ? Math.max(0, Math.min(100, (populationOverview.avgTierLevel / 4) * 100))
     : null;
+  const requirementWordCount = countWords(adminDraft.requirement_description);
+  const policyWordCount = countWords(adminDraft.policy_description);
 
   return (
     <div className={`catalog-layout${showLeaderboardPanel ? "" : " catalog-layout-single-panel"}`}>
@@ -2810,7 +2832,7 @@ function CatalogSearchPanel() {
                   aria-label="Filter by requirement type"
                 >
                   <option value="all">Type: All</option>
-                  <option value="secretariat">Type: Secretariat</option>
+                  <option value="secretariat">Type: Enterprise</option>
                   <option value="application_specific">Type: Application Specific</option>
                 </select>
               </label>
@@ -2833,7 +2855,7 @@ function CatalogSearchPanel() {
                 ? summarizeLabels(controlNames)
                 : "Control mapping unavailable";
               const isBase = isBaseRequirement(item, null, scopeItem);
-              const requirementTypeLabel = isBase ? "Secretariat" : "Application Specific";
+              const requirementTypeLabel = isBase ? "Enterprise" : "Application Specific";
               const hasGovernanceCategory = Boolean(canonicalGovernanceCategory(item?.category || ""));
               const currentPolicyStatus = String(item?.policy_status || "").trim().toLowerCase() === "inactive"
                 ? "Inactive"
@@ -3283,7 +3305,7 @@ function CatalogSearchPanel() {
                     {createMode ? (
                       <div className="catalog-modal-section catalog-modal-mini-section catalog-scope-top">
                         <div className="catalog-modal-section-title">
-                          Requirement Scope {makeLegendIcon("Choose who this requirement applies to: Secretariat (system-wide) or a specific application.")}
+                          Requirement Scope {makeLegendIcon("Choose who this requirement applies to: Enterprise (system-wide) or a specific application.")}
                         </div>
                         <div className="catalog-scope-options catalog-scope-options-compact">
                           <label className="catalog-scope-option">
@@ -3296,7 +3318,7 @@ function CatalogSearchPanel() {
                               disabled={savingAdminRecord || deletingAdminRecord}
                             />
                             <span className="catalog-scope-option-text">
-                              Secretariat {makeLegendIcon("System-wide requirement visible across all connected applications.")}
+                              Enterprise {makeLegendIcon("System-wide requirement visible across all connected applications.")}
                             </span>
                           </label>
                           <label className="catalog-scope-option">
@@ -3315,7 +3337,7 @@ function CatalogSearchPanel() {
                         </div>
                         {adminDraft.placement_requirement_type === "baseline" ? (
                           <p className="catalog-modal-helper-text">
-                            Secretariat requirements are auto-assigned across all active connected applications.
+                            Enterprise requirements are auto-assigned across all active connected applications.
                           </p>
                         ) : (
                           <>
@@ -3398,13 +3420,13 @@ function CatalogSearchPanel() {
                           </label>
                           <label className="catalog-wizard-field catalog-wizard-field-full">
                             <span className="detail-label">
-                              Requirement Description (Required) {makeLegendIcon("Plain-English summary of the obligation this requirement represents.")}
+                              Requirement Description {makeLegendIcon("Plain-English summary of the obligation this requirement represents.")}
                             </span>
                             <textarea className="query-input catalog-field-input" rows={4} maxLength={1200} value={adminDraft.requirement_description} onChange={(event) => updateAdminDraft("requirement_description", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} placeholder="Plain-English summary of one distinct obligation." required />
                           </label>
                           <label className="catalog-wizard-field catalog-wizard-field-full">
                             <span className="detail-label">
-                              Primary Risk Statement (Required) {makeLegendIcon("Describe the key governance risk this requirement is intended to mitigate.")}
+                              Primary Risk Statement {makeLegendIcon("Describe the key governance risk this requirement is intended to mitigate.")}
                             </span>
                             <input className="query-input catalog-field-input" value={adminDraft.risk_statement} onChange={(event) => updateAdminDraft("risk_statement", event.target.value)} placeholder="Plain-English risk addressed by this requirement" disabled={savingAdminRecord || deletingAdminRecord} required />
                           </label>
@@ -3430,7 +3452,7 @@ function CatalogSearchPanel() {
                           ) : null}
                           {!semanticRelatedDraft.length && !loadingSemanticSuggestion ? (
                             <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
-                              Add requirement and policy context above to generate similar requirement matches.
+                              Enter at least 6 words in Requirement Description and 6 words in Policy Description to generate semantic matches. Current: Requirement {requirementWordCount}/6, Policy {policyWordCount}/6.
                             </p>
                           ) : null}
                           {semanticRelatedDraft.length ? (
@@ -3479,19 +3501,19 @@ function CatalogSearchPanel() {
                           </label>
                           <label className="catalog-wizard-field">
                             <span className="detail-label">
-                              Policy Jurisdiction (Required) {makeLegendIcon("Geographic or organizational jurisdiction where the policy applies.")}
+                              Policy Jurisdiction {makeLegendIcon("Geographic or organizational jurisdiction where the policy applies.")}
                             </span>
                             <input className="query-input catalog-field-input" value={adminDraft.policy_jurisdiction} onChange={(event) => updateAdminDraft("policy_jurisdiction", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} required />
                           </label>
                           <label className="catalog-wizard-field">
                             <span className="detail-label">
-                              Policy Source (Required) {makeLegendIcon("Official source body or document origin for the policy (for example: UN CEB, EU Parliament, OECD).")}
+                              Policy Source {makeLegendIcon("Official source body or document origin for the policy (for example: UN CEB, EU Parliament, OECD).")}
                             </span>
                             <input className="query-input catalog-field-input" value={adminDraft.policy_source} onChange={(event) => updateAdminDraft("policy_source", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} required />
                           </label>
                           <label className="catalog-wizard-field">
                             <span className="detail-label">
-                              Policy Type (Required) {makeLegendIcon("Classify policy scope: global, regional, domain, enterprise, divisional, or application.")}
+                              Policy Type {makeLegendIcon("Classify policy scope: global, regional, domain, enterprise, divisional, or application.")}
                             </span>
                             <select className="query-input catalog-field-input catalog-contrast-select" value={adminDraft.policy_type} onChange={(event) => updateAdminDraft("policy_type", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} required>
                               {POLICY_TYPE_OPTIONS.map((type) => <option key={type} value={type}>{type}</option>)}
@@ -3499,7 +3521,7 @@ function CatalogSearchPanel() {
                           </label>
                           <label className="catalog-wizard-field">
                             <span className="detail-label">
-                              Policy Status (Required) {makeLegendIcon("Active policies are available to non-admin users; inactive policies are hidden from standard views.")}
+                              Policy Status {makeLegendIcon("Active policies are available to non-admin users; inactive policies are hidden from standard views.")}
                             </span>
                             <select className="query-input catalog-field-input catalog-contrast-select" value={adminDraft.policy_status} onChange={(event) => updateAdminDraft("policy_status", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} required>
                               <option value="Active">Active</option>
@@ -3508,7 +3530,7 @@ function CatalogSearchPanel() {
                           </label>
                           <label className="catalog-wizard-field catalog-wizard-field-full">
                             <span className="detail-label">
-                              Policy Description (Required) {makeLegendIcon("Plain-English objective and intended governance outcome of this policy document.")}
+                              Policy Description {makeLegendIcon("Plain-English objective and intended governance outcome of this policy document.")}
                             </span>
                             <textarea className="query-input catalog-field-input" rows={4} value={adminDraft.policy_description} onChange={(event) => updateAdminDraft("policy_description", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} placeholder="Summarize what this policy is intended to achieve in practice." required />
                           </label>
@@ -3528,7 +3550,7 @@ function CatalogSearchPanel() {
                           ) : null}
                           {!policySuggestions.length && !loadingPolicySuggestions ? (
                             <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
-                              Enter policy title or description above to load matching policy records.
+                              Semantic policy matches appear after both descriptions reach 6+ words. Current: Requirement {requirementWordCount}/6, Policy {policyWordCount}/6.
                             </p>
                           ) : null}
                           {policySuggestions.length ? (
@@ -3599,11 +3621,17 @@ function CatalogSearchPanel() {
                               <div className="detail-row">
                                 <button
                                   type="button"
-                                  className="btn-secondary btn-xs"
+                                  className="catalog-inline-icon-link"
                                   onClick={applyAIMetricSuggestion}
                                   disabled={savingAdminRecord || deletingAdminRecord}
+                                  title="Apply AI KPI recommendation"
                                 >
-                                  Apply Recommendation
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                    <path d="M4 12h8" />
+                                    <path d="m9 7 5 5-5 5" />
+                                    <path d="M14 5h6v14h-6" />
+                                  </svg>
+                                  <span>Apply Recommendation</span>
                                 </button>
                               </div>
                             </div>

@@ -2107,7 +2107,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
     (row) => {
       const requirementId = String(row?.requirement_id || '').trim();
       const scopeItem = requirementId ? requirementScopeById.get(requirementId) : null;
-      // Secretariat baseline rows should always remain visible.
+      // Enterprise baseline rows should always remain visible.
       if (scopeItem?.is_default) {
         return false;
       }
@@ -3548,7 +3548,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                               Compliance Score: {categoryCompliance}%
                             </span>
                             <span
-                              title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                              title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -3577,7 +3577,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -3753,7 +3753,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -3770,7 +3770,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
                           <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
                           <span
-                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -3972,7 +3972,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -3989,7 +3989,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
                           <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
                           <span
-                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -4169,7 +4169,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -4186,7 +4186,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
                           <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
                           <span
-                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -4366,7 +4366,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -4383,7 +4383,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
                           <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
                           <span
-                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -4563,7 +4563,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -4580,7 +4580,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
                           <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
                           <span
-                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -4759,7 +4759,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -4776,7 +4776,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
                           <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
                           <span
-                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -4956,7 +4956,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -4973,7 +4973,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
                           <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
                           <span
-                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -5153,7 +5153,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                                 ? { borderColor: 'var(--un-blue)', color: 'var(--un-blue)', background: 'var(--un-blue-light)' }
                                 : undefined}
                             >
-                              Secretariat ({baselineRows.length})
+                              Enterprise ({baselineRows.length})
                             </button>
                             <button
                               type="button"
@@ -5170,7 +5170,7 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.55rem' }}>
                           <span className="badge badge-unblue">Compliance Score: {categoryCompliance}%</span>
                           <span
-                            title="Compliance Score for this governance category is calculated across Secretariat + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
+                            title="Compliance Score for this governance category is calculated across Enterprise + Application Specific requirements. A requirement is counted as complete when Value is greater than 0 (or 0%). Missing value or 0 counts as incomplete."
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
