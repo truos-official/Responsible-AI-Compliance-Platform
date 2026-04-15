@@ -316,14 +316,7 @@ export default function App() {
 
     switch (activeTab) {
       case 'home':
-        return (
-          <>
-            <div style={{ display: 'none' }} aria-hidden="true">
-              <DashboardsTab requestedStep={null} onDashboardUiChange={setDashboardUi} mode="home" />
-            </div>
-            <HomePage onNavigate={handleHomeNavigate} />
-          </>
-        );
+        return <HomePage onNavigate={handleHomeNavigate} />;
       case 'dashboards':
         return <DashboardsTab requestedStep={requestedStep} onDashboardUiChange={setDashboardUi} mode="governance" />;
       case 'requirements':
@@ -457,6 +450,12 @@ export default function App() {
       </header>
 
       <div className="app-body">
+        {activeTab !== 'dashboards' && (
+          <div style={{ display: 'none' }} aria-hidden="true">
+            <DashboardsTab requestedStep={null} onDashboardUiChange={setDashboardUi} mode="home" />
+          </div>
+        )}
+
         {activeTab === 'dashboards' && (
           <AppSidebar
             onStepNavigate={(stepNum) => {

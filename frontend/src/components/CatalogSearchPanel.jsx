@@ -1611,9 +1611,8 @@ function CatalogSearchPanel() {
   async function toggleRequirementStatus(item) {
     if (!isGlobalAdmin) return;
     const requirementId = String(item?.id || "").trim();
-    const regulationId = String(item?.regulation_id || "").trim();
-    if (!requirementId || !regulationId) {
-      setAssignError("Requirement status cannot be updated because policy linkage is missing.");
+    if (!requirementId) {
+      setAssignError("Requirement status cannot be updated because requirement id is missing.");
       return;
     }
 
@@ -1628,15 +1627,26 @@ function CatalogSearchPanel() {
     try {
       await updateAdminRequirementStatus(requirementId, targetStatus);
       setAllRequirements((prev) => prev.map((row) => (
-        String(row?.regulation_id || "").trim() === regulationId
+        String(row?.id || "").trim() === requirementId
           ? { ...row, policy_status: targetStatus }
           : row
       )));
       setSelectedDetail((prev) => (
-        prev && String(prev?.regulation_id || "").trim() === regulationId
+        prev && String(prev?.id || "").trim() === requirementId
           ? { ...prev, policy_status: targetStatus }
           : prev
       ));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("aigov:requirements-updated", {
+            detail: {
+              reason: "policy_status_toggle",
+              requirement_id: requirementId,
+              policy_status: targetStatus,
+            },
+          }),
+        );
+      }
       setAssignNotice(`Requirement status updated to ${targetStatus}.`);
     } catch (err) {
       setAssignError(err?.response?.data?.detail || err?.message || "Failed to update requirement status.");

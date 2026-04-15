@@ -53,6 +53,7 @@ class Requirement(Base):
     title           = Column(String, nullable=False)
     description     = Column(Text)
     category        = Column(String)
+    status          = Column(String, nullable=False, default="Active")
     risk_statement  = Column(Text)
     # pgvector column added via Alembic in Phase 2.2
     regulation      = relationship("Regulation", back_populates="requirements")

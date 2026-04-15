@@ -356,7 +356,7 @@ SELECT
     reg.source AS policy_source,
     reg.description AS policy_description,
     reg.policy_type AS policy_type,
-    reg.policy_status AS policy_status,
+    COALESCE(NULLIF(TRIM(r.status), ''), NULLIF(TRIM(reg.policy_status), ''), 'Active') AS policy_status,
     r.code AS code,
     r.title AS title,
     r.description AS description,
@@ -1080,7 +1080,7 @@ async def admin_search_requirements(
                 reg.jurisdiction AS jurisdiction,
                 reg.source AS policy_source,
                 reg.policy_type AS policy_type,
-                reg.policy_status AS policy_status,
+                COALESCE(NULLIF(TRIM(r.status), ''), NULLIF(TRIM(reg.policy_status), ''), 'Active') AS policy_status,
                 r.risk_statement AS risk_statement
             FROM requirement r
             LEFT JOIN regulation reg ON reg.id = r.regulation_id
@@ -1329,6 +1329,7 @@ async def admin_save_requirement_record(
                         title = :title,
                         description = :description,
                         category = :category,
+                        status = :status,
                         risk_statement = :risk_statement
                     WHERE id::text = :id
                     """
@@ -1339,6 +1340,7 @@ async def admin_save_requirement_record(
                     "title": payload.requirement_title.strip(),
                     "description": payload.requirement_description.strip(),
                     "category": payload.governance_category.strip(),
+                    "status": policy_status,
                     "risk_statement": payload.risk_statement.strip(),
                 },
             )
@@ -1353,9 +1355,9 @@ async def admin_save_requirement_record(
                 text(
                     """
                     INSERT INTO requirement (
-                        id, regulation_id, code, title, description, category, risk_statement
+                        id, regulation_id, code, title, description, category, status, risk_statement
                     ) VALUES (
-                        :id, :regulation_id, :code, :title, :description, :category, :risk_statement
+                        :id, :regulation_id, :code, :title, :description, :category, :status, :risk_statement
                     )
                     """
                 ),
@@ -1366,6 +1368,7 @@ async def admin_save_requirement_record(
                     "title": payload.requirement_title.strip(),
                     "description": payload.requirement_description.strip(),
                     "category": payload.governance_category.strip(),
+                    "status": policy_status,
                     "risk_statement": payload.risk_statement.strip(),
                 },
             )
@@ -1967,6 +1970,14 @@ async def admin_delete_requirement_record(
                 {"control_id": control_id},
             )
             await session.execute(
+                text("DELETE FROM calculated_metric WHERE control_id::text = :control_id"),
+                {"control_id": control_id},
+            )
+            await session.execute(
+                text("DELETE FROM control_calculation_proposal WHERE control_id::text = :control_id"),
+                {"control_id": control_id},
+            )
+            await session.execute(
                 text("DELETE FROM app_interpretation WHERE control_id::text = :control_id"),
                 {"control_id": control_id},
             )
@@ -2021,14 +2032,14 @@ async def admin_update_requirement_status(
         await session.execute(
             text(
                 """
-                UPDATE regulation
-                SET policy_status = :policy_status
-                WHERE id::text = :regulation_id
+                UPDATE requirement
+                SET status = :policy_status
+                WHERE id::text = :requirement_id
                 """
             ),
             {
                 "policy_status": target_status,
-                "regulation_id": regulation_id,
+                "requirement_id": requirement_id_text,
             },
         )
         await session.commit()

@@ -118,6 +118,7 @@ class ApplicationRequirementScopeItem(BaseModel):
     title: str
     regulation_title: Optional[str]
     jurisdiction: Optional[str]
+    policy_status: Optional[str] = None
     category: Optional[str]
     selected: bool
     is_default: bool = False
@@ -1598,7 +1599,7 @@ async def _load_metric_context_from_scope(
             Regulation.jurisdiction.label("jurisdiction"),
             Regulation.source.label("policy_source"),
             Regulation.policy_type.label("policy_type"),
-            Regulation.policy_status.label("policy_status"),
+            func.coalesce(Requirement.status, Regulation.policy_status, "Active").label("policy_status"),
             Control.id.label("control_id"),
             Control.code.label("control_code"),
             Control.title.label("control_title"),
@@ -1874,7 +1875,11 @@ async def _build_scoped_dashboard_step_response(
             Requirement.category,
         )
         .join(Requirement, Requirement.id == ApplicationRequirement.requirement_id)
-        .where(ApplicationRequirement.application_id == app_id)
+        .outerjoin(Regulation, Regulation.id == Requirement.regulation_id)
+        .where(
+            ApplicationRequirement.application_id == app_id,
+            func.lower(func.coalesce(Requirement.status, Regulation.policy_status, "Active")) != "inactive",
+        )
     )
     selected_requirement_rows = selected_requirements_result.all()
     selected_requirement_ids = [str(row.requirement_id) for row in selected_requirement_rows]
@@ -2063,7 +2068,7 @@ async def _build_scoped_dashboard_step_response(
             Regulation.jurisdiction.label("jurisdiction"),
             Regulation.source.label("policy_source"),
             Regulation.policy_type.label("policy_type"),
-            Regulation.policy_status.label("policy_status"),
+            func.coalesce(Requirement.status, Regulation.policy_status, "Active").label("policy_status"),
         )
         .join(Requirement, Requirement.id == ControlRequirement.requirement_id)
         .outerjoin(Regulation, Regulation.id == Requirement.regulation_id)
@@ -2563,6 +2568,7 @@ async def list_application_requirements(
             Requirement.category.label("category"),
             Regulation.title.label("regulation_title"),
             Regulation.jurisdiction.label("jurisdiction"),
+            func.coalesce(Requirement.status, Regulation.policy_status, "Active").label("policy_status"),
             ApplicationRequirement.id.label("selection_id"),
             ApplicationRequirement.is_default.label("is_default"),
             ApplicationRequirement.added_at.label("added_at"),
@@ -2666,6 +2672,7 @@ async def list_application_requirements(
             regulation_title=row.regulation_title,
             jurisdiction=row.jurisdiction,
             category=row.category,
+            policy_status=row.policy_status,
             selected=row.selection_id is not None,
             is_default=bool(row.is_default),
             added_at=row.added_at,
@@ -3243,7 +3250,7 @@ async def get_dashboard_step(
                 Regulation.jurisdiction.label("jurisdiction"),
                 Regulation.source.label("policy_source"),
                 Regulation.policy_type.label("policy_type"),
-                Regulation.policy_status.label("policy_status"),
+                func.coalesce(Requirement.status, Regulation.policy_status, "Active").label("policy_status"),
             )
             .join(Requirement, Requirement.id == ControlRequirement.requirement_id)
             .join(Regulation, Regulation.id == Requirement.regulation_id)
@@ -3492,7 +3499,12 @@ async def get_dashboard_step(
 
     selected_requirements_result = await db.execute(
         select(ApplicationRequirement.requirement_id)
-        .where(ApplicationRequirement.application_id == app_id)
+        .join(Requirement, Requirement.id == ApplicationRequirement.requirement_id)
+        .outerjoin(Regulation, Regulation.id == Requirement.regulation_id)
+        .where(
+            ApplicationRequirement.application_id == app_id,
+            func.lower(func.coalesce(Requirement.status, Regulation.policy_status, "Active")) != "inactive",
+        )
     )
     selected_requirement_ids = [str(rid) for rid in selected_requirements_result.scalars().all()]
     if not selected_requirement_ids:

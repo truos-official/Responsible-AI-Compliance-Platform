@@ -1722,8 +1722,15 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
             const controlMode = String(controlModeById.get(controlId) || '').trim().toLowerCase();
             const metricName = String(control?.metric_name || '').trim().toLowerCase();
             const isManual = controlMode === 'manual' || metricName.startsWith('manual.evidence.');
+            const policyStatus = String(
+              item?.policy_status
+              || reqDetail?.policy_status
+              || ''
+            ).trim().toLowerCase();
+            const isRequirementInactive = policyStatus === 'inactive';
+            const isSelectedAndActive = Boolean(item?.selected) && !isRequirementInactive;
 
-            if (item?.selected) {
+            if (isSelectedAndActive) {
               if (categoryBucket) {
                 if (isManual) {
                   categoryBucket.activeManual.add(controlId);
@@ -2049,6 +2056,25 @@ export default function GovernanceTab({ requestedStep, onDashboardUiChange, mode
       // Non-blocking on initial render; step-level loaders surface errors as needed.
     });
   }, [loadRequirementScope, selectedApp?.id]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    const handleRequirementsRefresh = () => {
+      loadSystemOverview();
+      preloadDashboardStatusData();
+      if (selectedApp?.id) {
+        loadRequirementScope().catch(() => {
+          // Non-blocking refresh path.
+        });
+      }
+    };
+    window.addEventListener('aigov:requirements-updated', handleRequirementsRefresh);
+    return () => {
+      window.removeEventListener('aigov:requirements-updated', handleRequirementsRefresh);
+    };
+  }, [loadRequirementScope, loadSystemOverview, preloadDashboardStatusData, selectedApp?.id]);
 
   const filteredRequirements = useMemo(() => {
     const q = requirementFilter.trim().toLowerCase();
