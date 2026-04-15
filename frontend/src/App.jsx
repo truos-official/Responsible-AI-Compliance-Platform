@@ -961,28 +961,6 @@ AppSidebar.defaultProps = {
   },
 };
 
-DashboardSidebar.propTypes = {
-  dashboardUi: PropTypes.shape({
-    systemSnapshot: PropTypes.shape({
-      connectedApps: PropTypes.number,
-      enterpriseRequirements: PropTypes.number,
-      policyTypes: PropTypes.arrayOf(PropTypes.string),
-    }),
-    activeControlByCategory: PropTypes.arrayOf(PropTypes.shape({
-      category: PropTypes.string,
-      activeTotal: PropTypes.number,
-      inactiveTotal: PropTypes.number,
-      total: PropTypes.number,
-    })),
-  }),
-};
-
-DashboardSidebar.defaultProps = {
-  dashboardUi: {
-    systemSnapshot: null,
-  },
-};
-
 SidebarStep.propTypes = {
   step: PropTypes.shape({
     num: PropTypes.number.isRequired,
