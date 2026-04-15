@@ -9,12 +9,14 @@ import {
   listControls,
   listRequirements,
   saveAdminRequirementRecord,
+  searchAdminRequirements,
   searchAdminPolicies,
   suggestAdminRequirementDraft,
   updateAdminRequirementStatus,
 } from "../api/catalogClient";
 import { api } from "../api/client";
 import { useApp } from "../context/AppContext";
+import "./wizard.css";
 
 const PAGE_SIZE = 5;
 const REQUIREMENTS_PAGE_LIMIT = 200;
@@ -46,6 +48,11 @@ const ADMIN_FORM_STEPS = [
   "Define Requirement and Scope",
   "Link Policy",
   "Map KPI and Control",
+];
+const ADMIN_FORM_STEP_SHORT = [
+  "Step 1 · Define",
+  "Step 2 · Link Policy",
+  "Step 3 · Map KPI",
 ];
 const NEW_REQUIREMENT_MARKER_KEY_PREFIX = "aigov.new_requirements";
 
@@ -1465,23 +1472,69 @@ function CatalogSearchPanel() {
       detail = null;
     }
 
+    const resolvedTitle = cleanNarrativeText(detail?.title || relatedItem?.title || "");
+    const resolvedCategory = canonicalGovernanceCategory(
+      detail?.category || relatedItem?.category || "",
+    );
+    const linkedControls = resolveLinkedControls(
+      { id: relatedId, title: resolvedTitle || relatedItem?.title || "" },
+      detail,
+      null,
+    );
+    const controlFromLineage = Array.isArray(linkedControls) && linkedControls.length > 0
+      ? linkedControls[0]
+      : null;
+    const inheritedMetricName = String(
+      controlFromLineage?.metric_name
+      || relatedItem?.metric_name
+      || "",
+    ).trim();
+    const telemetryFields = inheritedMetricName
+      ? deriveTelemetryControlFields(inheritedMetricName)
+      : null;
+    const inheritedControlTitle = cleanNarrativeText(
+      controlFromLineage?.title
+      || relatedItem?.control_title
+      || telemetryFields?.title
+      || "",
+    );
+    const inheritedControlDescription = cleanNarrativeText(
+      telemetryFields?.description
+      || detail?.control_description
+      || "",
+    );
+    const inheritedMeasureType = inheritedMetricName
+      ? "system_telemetry"
+      : "evidence_based";
+
     setAdminDraft((prev) => ({
       ...prev,
-      requirement_title: cleanNarrativeText(detail?.title || relatedItem?.title || prev.requirement_title),
+      requirement_title: resolvedTitle || prev.requirement_title,
       requirement_description: cleanNarrativeText(detail?.description || relatedItem?.description || prev.requirement_description),
-      governance_category: canonicalGovernanceCategory(detail?.category || relatedItem?.category || prev.governance_category) || prev.governance_category,
+      governance_category: resolvedCategory || prev.governance_category,
       risk_statement: cleanNarrativeText(detail?.risk_statement || prev.risk_statement),
+      control_measure_type: inheritedMeasureType,
+      control_title: inheritedControlTitle || prev.control_title,
+      control_description: inheritedControlDescription || prev.control_description,
+      metric_name: inheritedMetricName || (inheritedMeasureType === "evidence_based" ? prev.metric_name : ""),
+      formula_expression: inheritedMetricName ? `latest(${inheritedMetricName})` : prev.formula_expression,
+      threshold_operator: inheritedMeasureType === "system_telemetry" ? "lte" : prev.threshold_operator,
+      threshold_unit: inheritedMeasureType === "system_telemetry" ? "%" : prev.threshold_unit,
     }));
   }
 
   function applyPolicySuggestion(policyItem) {
+    const policyTitle = String(policyItem?.title || "").trim();
+    const fallbackPolicyDescription = policyTitle
+      ? `Policy objective and governance intent aligned to ${policyTitle}.`
+      : "Policy objective and governance intent for this requirement.";
     setAdminDraft((prev) => ({
       ...prev,
       policy_id: String(policyItem?.id || prev.policy_id || ""),
       policy_title: String(policyItem?.title || prev.policy_title || ""),
-      policy_jurisdiction: String(policyItem?.jurisdiction || prev.policy_jurisdiction || ""),
-      policy_source: String(policyItem?.source || prev.policy_source || ""),
-      policy_description: cleanNarrativeText(policyItem?.description || prev.policy_description || ""),
+      policy_jurisdiction: String(policyItem?.jurisdiction || prev.policy_jurisdiction || "Worldwide"),
+      policy_source: String(policyItem?.source || prev.policy_source || policyTitle || "Policy Repository"),
+      policy_description: cleanNarrativeText(policyItem?.description || prev.policy_description || fallbackPolicyDescription),
       policy_type: String(policyItem?.policy_type || prev.policy_type || "Global Policy"),
       policy_status: String(policyItem?.policy_status || prev.policy_status || "Active"),
     }));
@@ -1951,15 +2004,13 @@ function CatalogSearchPanel() {
 
   useEffect(() => {
     if (!createMode || !isGlobalAdmin) return;
-    if (!selectedItem || String(selectedItem?.id || "") !== "__new__") return;
 
     const policyDescription = String(adminDraft.policy_description || "").trim();
     const requirementDescription = String(adminDraft.requirement_description || "").trim();
     const requirementWords = countWords(requirementDescription);
-    const policyWords = countWords(policyDescription);
     const requirementHint = requirementDescription;
 
-    if (requirementWords < MIN_SEMANTIC_WORDS || policyWords < MIN_SEMANTIC_WORDS) {
+    if (requirementWords < MIN_SEMANTIC_WORDS) {
       setSemanticSuggestion(null);
       setSemanticRelatedDraft([]);
       setSemanticSuggestionError("");
@@ -1989,11 +2040,39 @@ function CatalogSearchPanel() {
         });
         if (requestSeq !== semanticSuggestionRequestSeq.current) return;
 
-        const related = Array.isArray(suggestion?.related_requirements)
+        let related = Array.isArray(suggestion?.related_requirements)
           ? suggestion.related_requirements
           : [];
+        if (!related.length) {
+          try {
+            const fallback = await searchAdminRequirements({
+              q: requirementHint.slice(0, 160),
+              limit: 8,
+            });
+            if (requestSeq !== semanticSuggestionRequestSeq.current) return;
+            related = Array.isArray(fallback?.items)
+              ? fallback.items.map((row) => ({
+                requirement_id: String(row?.id || ""),
+                title: row?.title || "",
+                description: row?.description || "",
+                category: row?.category || row?.governance_category || "",
+                score: Number(row?.score || row?.relevance || 0),
+                control_id: row?.control_id || null,
+                control_title: row?.control_title || null,
+                metric_name: row?.metric_name || null,
+              }))
+              : [];
+          } catch {
+            related = [];
+          }
+        }
         setSemanticSuggestion(suggestion || null);
         setSemanticRelatedDraft(related);
+        if (!related.length) {
+          setSemanticSuggestionError("No close semantic matches found yet. Try adding a bit more detail.");
+        } else {
+          setSemanticSuggestionError("");
+        }
 
         setAdminDraft((prev) => {
           const next = { ...prev };
@@ -2043,11 +2122,44 @@ function CatalogSearchPanel() {
         const detailMessage = Array.isArray(detail)
           ? String(detail?.[0]?.msg || detail?.[0]?.message || "")
           : "";
-        setSemanticSuggestionError(
-          typeof detail === "string"
-            ? detail
-            : (detailMessage || "Semantic suggestion is temporarily unavailable."),
-        );
+        try {
+          const fallback = await searchAdminRequirements({
+            q: requirementHint.slice(0, 160),
+            limit: 8,
+          });
+          if (requestSeq !== semanticSuggestionRequestSeq.current) return;
+          const items = Array.isArray(fallback?.items)
+            ? fallback.items.map((row) => ({
+              requirement_id: String(row?.id || ""),
+              title: row?.title || "",
+              description: row?.description || "",
+              category: row?.category || row?.governance_category || "",
+              score: Number(row?.score || row?.relevance || 0),
+              control_id: row?.control_id || null,
+              control_title: row?.control_title || null,
+              metric_name: row?.metric_name || null,
+            }))
+            : [];
+          setSemanticSuggestion(null);
+          setSemanticRelatedDraft(items);
+          setSemanticSuggestionError(
+            items.length
+              ? "AI draft is temporarily unavailable. Showing closest existing requirements."
+              : (
+                typeof detail === "string"
+                  ? detail
+                  : (detailMessage || "Semantic suggestion is temporarily unavailable.")
+              ),
+          );
+        } catch {
+          setSemanticSuggestionError(
+            typeof detail === "string"
+              ? detail
+              : (detailMessage || "Semantic suggestion is temporarily unavailable."),
+          );
+        } finally {
+          lastSemanticRequestKeyRef.current = "";
+        }
       } finally {
         if (requestSeq === semanticSuggestionRequestSeq.current) {
           setLoadingSemanticSuggestion(false);
@@ -2061,7 +2173,6 @@ function CatalogSearchPanel() {
   }, [
     createMode,
     isGlobalAdmin,
-    selectedItem?.id,
     adminDraft.policy_description,
     adminDraft.requirement_description,
   ]);
@@ -2074,8 +2185,9 @@ function CatalogSearchPanel() {
     const policyDescription = String(adminDraft.policy_description || "").trim();
     const requirementWords = countWords(requirementDescription);
     const policyWords = countWords(policyDescription);
-    const query = `${requirementDescription} ${policyDescription}`.trim().slice(0, 220);
-    if (requirementWords < MIN_SEMANTIC_WORDS || policyWords < MIN_SEMANTIC_WORDS) {
+    const querySeed = policyWords >= requirementWords ? policyDescription : requirementDescription;
+    const query = `${querySeed} ${policyDescription} ${requirementDescription}`.trim().slice(0, 160);
+    if (requirementWords < MIN_SEMANTIC_WORDS && policyWords < MIN_SEMANTIC_WORDS) {
       setPolicySuggestions([]);
       setPolicySuggestionError("");
       return;
@@ -2093,8 +2205,15 @@ function CatalogSearchPanel() {
       } catch (err) {
         if (!active) return;
         const detail = err?.response?.data?.detail;
+        const detailMessage = Array.isArray(detail)
+          ? String(detail?.[0]?.msg || detail?.[0]?.message || "")
+          : (detail && typeof detail === "object"
+            ? String(detail?.msg || detail?.message || "")
+            : "");
         setPolicySuggestionError(
-          typeof detail === "string" ? detail : "Policy suggestions are temporarily unavailable.",
+          typeof detail === "string"
+            ? detail
+            : (detailMessage || "Policy suggestions are temporarily unavailable."),
         );
         setPolicySuggestions([]);
       } finally {
@@ -2997,7 +3116,7 @@ function CatalogSearchPanel() {
 
       {selectedItem ? (
         <div
-          className="catalog-modal-overlay"
+          className={`catalog-modal-overlay${createMode ? " wizard-overlay" : ""}`}
           role="dialog"
           aria-modal="true"
           aria-label="Requirement detail"
@@ -3005,17 +3124,15 @@ function CatalogSearchPanel() {
             if (event.target === event.currentTarget) closeModal();
           }}
         >
-          <div className="catalog-modal catalog-animate-enter">
-            <div className="catalog-modal-header">
-              <div className="catalog-modal-heading">
-                <h3>{createMode ? "Create Requirement" : "Requirement Detail"}</h3>
-                <p>
-                  {createMode
-                    ? `Step ${adminFormStep} of ${maxAdminFormStep}: ${ADMIN_FORM_STEPS[adminFormStep - 1]}`
-                    : (cleanNarrativeText(selectedDetail?.title || selectedItem?.title) || "Untitled requirement")}
-                </p>
+          <div className={`catalog-modal catalog-animate-enter${createMode ? " wizard-modal" : ""}`}>
+            <div className={`catalog-modal-header${createMode ? " wizard-modal-header" : ""}`}>
+              <div className={`catalog-modal-heading${createMode ? " wizard-modal-heading" : ""}`}>
+                <h3>{createMode ? "Create New Governance Requirement" : "Requirement Detail"}</h3>
+                {!createMode ? (
+                  <p>{cleanNarrativeText(selectedDetail?.title || selectedItem?.title) || "Untitled requirement"}</p>
+                ) : null}
               </div>
-              <div className="catalog-modal-nav">
+              <div className={`catalog-modal-nav${createMode ? " wizard-modal-nav" : ""}`}>
                 {!createMode ? (
                   <>
                     <button
@@ -3040,13 +3157,119 @@ function CatalogSearchPanel() {
                     >
                       Next
                     </button>
+                    <button type="button" className="btn-secondary" onClick={closeModal}>
+                      Close
+                    </button>
                   </>
-                ) : null}
-                <button type="button" className="btn-secondary" onClick={closeModal}>
-                  Close
-                </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="wizard-icon-btn"
+                      title="Wizard guidance and field legends are shown inline in each step."
+                      aria-label="Wizard guidance"
+                    >
+                      ⓘ
+                    </button>
+                    <button
+                      type="button"
+                      className="wizard-icon-btn"
+                      title="Close wizard"
+                      aria-label="Close wizard"
+                      onClick={closeModal}
+                    >
+                      ×
+                    </button>
+                  </>
+                )}
               </div>
             </div>
+
+            {createMode ? (
+              <>
+                <div className="wizard-scope-strip">
+                  <div className="wizard-scope-toggle-row">
+                    <button
+                      type="button"
+                      className={`wizard-scope-pill${adminDraft.placement_requirement_type === "baseline" ? " is-active" : ""}`}
+                      onClick={() => updateAdminDraft("placement_requirement_type", "baseline")}
+                      disabled={savingAdminRecord || deletingAdminRecord}
+                    >
+                      Enterprise
+                    </button>
+                    <button
+                      type="button"
+                      className={`wizard-scope-pill${adminDraft.placement_requirement_type === "application_specific" ? " is-active" : ""}`}
+                      onClick={() => updateAdminDraft("placement_requirement_type", "application_specific")}
+                      disabled={savingAdminRecord || deletingAdminRecord}
+                    >
+                      Specific Application
+                    </button>
+                  </div>
+                  <p className="wizard-scope-note">
+                    {adminDraft.placement_requirement_type === "baseline"
+                      ? "Enterprise requirements are auto-assigned across all active connected applications."
+                      : "Specific application requirements apply only to selected connected applications."}
+                  </p>
+                  {adminDraft.placement_requirement_type === "application_specific" ? (
+                    <>
+                      {(connectedApps || []).length ? (
+                        <div className="suggestions-wrap catalog-scope-chip-wrap">
+                          {(connectedApps || []).map((app) => {
+                            const appId = String(app?.id || "");
+                            const selected = (adminDraft.placement_application_ids || []).includes(appId);
+                            return (
+                              <button
+                                key={appId}
+                                type="button"
+                                className={`chip catalog-scope-chip${selected ? " is-active" : ""}`}
+                                onClick={() => togglePlacementApp(appId)}
+                                disabled={savingAdminRecord || deletingAdminRecord}
+                              >
+                                {selected ? "Selected: " : ""}{app?.name || appId}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="catalog-modal-helper-text">
+                          No active connected applications are available for assignment.
+                        </p>
+                      )}
+                      {!hasAppScopeSelection ? (
+                        <p className="error-text" style={{ marginBottom: 0 }}>
+                          Select at least one application for Specific Application scope.
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+                <div
+                  className="wizard-progress-strip"
+                  style={{
+                    "--wizard-progress": `${maxAdminFormStep > 1 ? ((adminFormStep - 1) / (maxAdminFormStep - 1)) * 100 : 0}%`,
+                  }}
+                >
+                  {ADMIN_FORM_STEPS.map((stepLabel, index) => {
+                    const stepNumber = index + 1;
+                    const isActiveStep = adminFormStep === stepNumber;
+                    const isDoneStep = adminFormStep > stepNumber;
+                    return (
+                      <button
+                        key={stepLabel}
+                        type="button"
+                        className={`wizard-progress-step${isActiveStep ? " is-active" : ""}${isDoneStep ? " is-complete" : ""}`}
+                        onClick={() => setAdminFormStep(stepNumber)}
+                        disabled={savingAdminRecord || deletingAdminRecord}
+                      >
+                        <span className="wizard-progress-circle">{isDoneStep ? "✓" : stepNumber}</span>
+                        <span className="wizard-progress-label">{ADMIN_FORM_STEP_SHORT[index] || stepLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
 
             {!createMode && !hasConnectedApps ? (
               <p className="section-copy" style={{ marginBottom: "0.45rem" }}>
@@ -3298,87 +3521,17 @@ function CatalogSearchPanel() {
                   <div className={`catalog-modal-section catalog-modal-card${createMode ? " catalog-admin-builder" : ""}`}>
                     <div className="catalog-modal-section-header">
                       <div className="catalog-modal-card-title">
-                        {createMode ? "New Requirement Wizard" : "Requirement Record Editor"}
+                        {createMode ? "Create New Governance Requirement" : "Requirement Record Editor"}
                         {makeLegendIcon("Global Admin only. Step-based form for creating or editing requirement records.")}
                       </div>
                     </div>
-                    {createMode ? (
-                      <div className="catalog-modal-section catalog-modal-mini-section catalog-scope-top">
-                        <div className="catalog-modal-section-title">
-                          Requirement Scope {makeLegendIcon("Choose who this requirement applies to: Enterprise (system-wide) or a specific application.")}
-                        </div>
-                        <div className="catalog-scope-options catalog-scope-options-compact">
-                          <label className="catalog-scope-option">
-                            <input
-                              type="radio"
-                              name="requirement-scope-top"
-                              value="baseline"
-                              checked={adminDraft.placement_requirement_type === "baseline"}
-                              onChange={(event) => updateAdminDraft("placement_requirement_type", event.target.value)}
-                              disabled={savingAdminRecord || deletingAdminRecord}
-                            />
-                            <span className="catalog-scope-option-text">
-                              Enterprise {makeLegendIcon("System-wide requirement visible across all connected applications.")}
-                            </span>
-                          </label>
-                          <label className="catalog-scope-option">
-                            <input
-                              type="radio"
-                              name="requirement-scope-top"
-                              value="application_specific"
-                              checked={adminDraft.placement_requirement_type === "application_specific"}
-                              onChange={(event) => updateAdminDraft("placement_requirement_type", event.target.value)}
-                              disabled={savingAdminRecord || deletingAdminRecord}
-                            />
-                            <span className="catalog-scope-option-text">
-                              Specific Application {makeLegendIcon("Requirement is scoped only to the selected application(s).")}
-                            </span>
-                          </label>
-                        </div>
-                        {adminDraft.placement_requirement_type === "baseline" ? (
-                          <p className="catalog-modal-helper-text">
-                            Enterprise requirements are auto-assigned across all active connected applications.
-                          </p>
-                        ) : (
-                          <>
-                            {(connectedApps || []).length ? (
-                              <div className="suggestions-wrap catalog-scope-chip-wrap">
-                                {(connectedApps || []).map((app) => {
-                                  const appId = String(app?.id || "");
-                                  const selected = (adminDraft.placement_application_ids || []).includes(appId);
-                                  return (
-                                    <button
-                                      key={appId}
-                                      type="button"
-                                      className={`chip catalog-scope-chip${selected ? " is-active" : ""}`}
-                                      onClick={() => togglePlacementApp(appId)}
-                                      disabled={savingAdminRecord || deletingAdminRecord}
-                                    >
-                                      {selected ? "Selected: " : ""}{app?.name || appId}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <p className="catalog-modal-helper-text">
-                                No active connected applications are available for assignment.
-                              </p>
-                            )}
-                            {!hasAppScopeSelection ? (
-                              <p className="error-text" style={{ marginBottom: 0 }}>
-                                Select at least one application for Specific Application scope.
-                              </p>
-                            ) : null}
-                          </>
-                        )}
-                      </div>
+                    {!createMode ? (
+                      <p className="catalog-modal-helper-text catalog-admin-helper">
+                        Edit this requirement directly using the same four-step flow.
+                      </p>
                     ) : null}
-                    <p className="catalog-modal-helper-text catalog-admin-helper">
-                      {createMode
-                        ? "Choose scope at the top, then complete each step. Create is enabled on the final step."
-                        : "Edit this requirement directly using the same four-step flow."}
-                    </p>
-                    <div className="catalog-modal-flow catalog-wizard-stepper">
+                    {!createMode ? (
+                      <div className="catalog-modal-flow catalog-wizard-stepper">
                       {ADMIN_FORM_STEPS.map((stepLabel, index) => {
                         const stepNumber = index + 1;
                         return (
@@ -3394,17 +3547,76 @@ function CatalogSearchPanel() {
                           </button>
                         );
                       })}
-                    </div>
-                    <form onSubmit={saveAdminRequirement} className="catalog-interpret-form catalog-admin-form catalog-animate-enter">
+                      </div>
+                    ) : null}
+                    <form onSubmit={saveAdminRequirement} className={`catalog-interpret-form catalog-admin-form catalog-animate-enter${createMode ? " wizard-form" : ""}`}>
+                      <div className={createMode ? "wizard-form-body" : ""}>
                       {adminFormStep === 1 ? (
-                        <div className="catalog-modal-section catalog-modal-mini-section catalog-wizard-stage">
+                        <div className="catalog-modal-section catalog-modal-mini-section catalog-wizard-stage wizard-section-card">
                         <div className="catalog-modal-section-header">
                           <div className="catalog-modal-section-title">
-                            Requirement Profile {makeLegendIcon("Define the core requirement record and its governance placement.")}
+                            Create New Governance Requirement {makeLegendIcon("Define the core requirement record and its governance placement.")}
                           </div>
                         </div>
+                        <label className="catalog-wizard-field catalog-wizard-field-full">
+                          <span className="detail-label">
+                            Requirement Description {makeLegendIcon("Plain-English summary of the obligation this requirement represents.")}
+                          </span>
+                          <textarea className="query-input catalog-field-input" rows={4} maxLength={1200} value={adminDraft.requirement_description} onChange={(event) => updateAdminDraft("requirement_description", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} placeholder="Plain-English summary of one distinct obligation." required />
+                        </label>
+                        {createMode ? (
+                        <div className="catalog-modal-section catalog-modal-mini-section wizard-section-card wizard-similar-panel" style={{ marginTop: "0.55rem" }}>
+                          <div className="catalog-modal-section-header">
+                            <div className="catalog-modal-section-title">
+                              Similar Existing Requirements {makeLegendIcon("Closest requirement definitions from the database. Use one to auto-populate Step 1 fields.")}
+                            </div>
+                            {loadingSemanticSuggestion ? (
+                              <span className="wizard-confidence-badge">Analyzing...</span>
+                            ) : (
+                              semanticSuggestion ? (
+                                <span className="wizard-confidence-badge">
+                                  {semanticSuggestion.suggestion_source || "heuristic"} | {Math.round((Number(semanticSuggestion.confidence || 0)) * 100)}% confidence
+                                </span>
+                              ) : null
+                            )}
+                          </div>
+                          {semanticSuggestionError ? (
+                            <p className="error-text" style={{ marginBottom: 0 }}>{semanticSuggestionError}</p>
+                          ) : null}
+                          {!semanticRelatedDraft.length && !loadingSemanticSuggestion ? (
+                            <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
+                              Enter at least 6 words in Requirement Description to generate semantic matches. Policy Description is optional but improves quality. Current: Requirement {requirementWordCount}/6, Policy {policyWordCount}/6.
+                            </p>
+                          ) : null}
+                          {semanticRelatedDraft.length ? (
+                            <div className="wizard-suggestion-list">
+                              {semanticRelatedDraft.map((entry) => (
+                                <div key={entry.requirement_id} className="wizard-suggestion-card">
+                                  <p className="catalog-history-meta wizard-suggestion-meta" style={{ marginBottom: "0.2rem" }}>
+                                    {entry?.category || "Uncategorized"} | score {Math.round((Number(entry?.score || 0)) * 100)}%
+                                  </p>
+                                  <p style={{ marginBottom: "0.25rem", fontWeight: 600 }}>
+                                    {cleanNarrativeText(entry?.title) || "Untitled requirement"}
+                                  </p>
+                                  <p style={{ marginBottom: "0.4rem" }}>
+                                    {cleanNarrativeText(entry?.description) || "No requirement definition available."}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="wizard-suggestion-action"
+                                    onClick={() => applyRequirementSuggestion(entry)}
+                                    title="Use this requirement to auto-populate Step 1 fields"
+                                  >
+                                    Use Definition
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        ) : null}
                         <div className="detail-grid catalog-wizard-grid">
-                          <label className="catalog-wizard-field">
+                          <label className="catalog-wizard-field catalog-wizard-field-full wizard-field-title">
                             <span className="detail-label">
                               Requirement Title {makeLegendIcon("Short unique title for the requirement record.")}
                             </span>
@@ -3420,61 +3632,66 @@ function CatalogSearchPanel() {
                           </label>
                           <label className="catalog-wizard-field catalog-wizard-field-full">
                             <span className="detail-label">
-                              Requirement Description {makeLegendIcon("Plain-English summary of the obligation this requirement represents.")}
-                            </span>
-                            <textarea className="query-input catalog-field-input" rows={4} maxLength={1200} value={adminDraft.requirement_description} onChange={(event) => updateAdminDraft("requirement_description", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} placeholder="Plain-English summary of one distinct obligation." required />
-                          </label>
-                          <label className="catalog-wizard-field catalog-wizard-field-full">
-                            <span className="detail-label">
+                              <span className="wizard-risk-label-icon" aria-hidden="true">⚠</span>
                               Primary Risk Statement {makeLegendIcon("Describe the key governance risk this requirement is intended to mitigate.")}
                             </span>
                             <input className="query-input catalog-field-input" value={adminDraft.risk_statement} onChange={(event) => updateAdminDraft("risk_statement", event.target.value)} placeholder="Plain-English risk addressed by this requirement" disabled={savingAdminRecord || deletingAdminRecord} required />
                           </label>
                         </div>
+                        </div>
+                      ) : null}
+
+                      {adminFormStep === 2 ? (
+                        <div className="catalog-modal-section catalog-modal-mini-section catalog-wizard-stage wizard-section-card">
+                        <div className="catalog-modal-section-header">
+                          <div className="catalog-modal-section-title">
+                            Enter Policy Information {makeLegendIcon("Link this requirement to its governing policy metadata.")}
+                          </div>
+                        </div>
+                        <label className="catalog-wizard-field catalog-wizard-field-full">
+                          <span className="detail-label">
+                            Policy Description {makeLegendIcon("Plain-English objective and intended governance outcome of this policy document.")}
+                          </span>
+                          <textarea className="query-input catalog-field-input" rows={4} value={adminDraft.policy_description} onChange={(event) => updateAdminDraft("policy_description", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} placeholder="Summarize what this policy is intended to achieve in practice." required />
+                        </label>
                         {createMode ? (
-                        <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: "0.55rem" }}>
+                        <div className="catalog-modal-section catalog-modal-mini-section wizard-section-card wizard-similar-panel" style={{ marginTop: "0.55rem" }}>
                           <div className="catalog-modal-section-header">
                             <div className="catalog-modal-section-title">
-                              Similar Existing Requirements {makeLegendIcon("Closest requirement definitions from the database. Use one to auto-populate Step 1 fields.")}
+                              Similar Existing Policies {makeLegendIcon("Closest policy records from the database. Use one to auto-populate Step 2 fields.")}
                             </div>
-                            {loadingSemanticSuggestion ? (
-                              <span className="detail-label" style={{ color: "var(--un-blue)" }}>Analyzing...</span>
-                            ) : (
-                              semanticSuggestion ? (
-                                <span className="detail-label" style={{ color: "var(--text-secondary)" }}>
-                                  {semanticSuggestion.suggestion_source || "heuristic"} | {Math.round((Number(semanticSuggestion.confidence || 0)) * 100)}% confidence
-                                </span>
-                              ) : null
-                            )}
+                            {loadingPolicySuggestions ? (
+                              <span className="wizard-confidence-badge">Searching...</span>
+                            ) : null}
                           </div>
-                          {semanticSuggestionError ? (
-                            <p className="error-text" style={{ marginBottom: 0 }}>{semanticSuggestionError}</p>
+                          {policySuggestionError ? (
+                            <p className="error-text" style={{ marginBottom: 0 }}>{policySuggestionError}</p>
                           ) : null}
-                          {!semanticRelatedDraft.length && !loadingSemanticSuggestion ? (
+                          {!policySuggestions.length && !loadingPolicySuggestions ? (
                             <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
-                              Enter at least 6 words in Requirement Description and 6 words in Policy Description to generate semantic matches. Current: Requirement {requirementWordCount}/6, Policy {policyWordCount}/6.
+                              Semantic policy matches appear after Requirement Description or Policy Description reaches 6+ words. Current: Requirement {requirementWordCount}/6, Policy {policyWordCount}/6.
                             </p>
                           ) : null}
-                          {semanticRelatedDraft.length ? (
-                            <div style={{ maxHeight: "220px", overflowY: "auto", display: "grid", gap: "0.45rem", marginTop: "0.35rem" }}>
-                              {semanticRelatedDraft.map((entry) => (
-                                <div key={entry.requirement_id} className="catalog-history-item" style={{ marginBottom: 0 }}>
-                                  <p className="catalog-history-meta" style={{ marginBottom: "0.2rem" }}>
-                                    {entry?.category || "Uncategorized"} | score {Math.round((Number(entry?.score || 0)) * 100)}%
+                          {policySuggestions.length ? (
+                            <div className="wizard-suggestion-list">
+                              {policySuggestions.map((policy) => (
+                                <div key={policy.id} className="wizard-suggestion-card">
+                                  <p className="catalog-history-meta wizard-suggestion-meta" style={{ marginBottom: "0.2rem" }}>
+                                    {(policy?.policy_type || "Policy")} | {(policy?.jurisdiction || "Worldwide")}
                                   </p>
                                   <p style={{ marginBottom: "0.25rem", fontWeight: 600 }}>
-                                    {cleanNarrativeText(entry?.title) || "Untitled requirement"}
+                                    {cleanNarrativeText(policy?.title) || "Untitled policy"}
                                   </p>
                                   <p style={{ marginBottom: "0.4rem" }}>
-                                    {cleanNarrativeText(entry?.description) || "No requirement definition available."}
+                                    {cleanNarrativeText(policy?.description) || "No policy description available."}
                                   </p>
                                   <button
                                     type="button"
-                                    className="btn-secondary btn-xs"
-                                    onClick={() => applyRequirementSuggestion(entry)}
-                                    title="Use this requirement to auto-populate Step 1 fields"
+                                    className="wizard-suggestion-action"
+                                    onClick={() => applyPolicySuggestion(policy)}
+                                    title="Use this policy to auto-populate Step 2 fields"
                                   >
-                                    Use Definition
+                                    Use Policy
                                   </button>
                                 </div>
                               ))}
@@ -3482,16 +3699,6 @@ function CatalogSearchPanel() {
                           ) : null}
                         </div>
                         ) : null}
-                        </div>
-                      ) : null}
-
-                      {adminFormStep === 2 ? (
-                        <div className="catalog-modal-section catalog-modal-mini-section catalog-wizard-stage">
-                        <div className="catalog-modal-section-header">
-                          <div className="catalog-modal-section-title">
-                            Policy Mapping {makeLegendIcon("Link this requirement to its governing policy metadata.")}
-                          </div>
-                        </div>
                         <div className="detail-grid catalog-wizard-grid">
                           <label className="catalog-wizard-field">
                             <span className="detail-label">
@@ -3528,78 +3735,28 @@ function CatalogSearchPanel() {
                               <option value="Inactive">Inactive</option>
                             </select>
                           </label>
-                          <label className="catalog-wizard-field catalog-wizard-field-full">
-                            <span className="detail-label">
-                              Policy Description {makeLegendIcon("Plain-English objective and intended governance outcome of this policy document.")}
-                            </span>
-                            <textarea className="query-input catalog-field-input" rows={4} value={adminDraft.policy_description} onChange={(event) => updateAdminDraft("policy_description", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} placeholder="Summarize what this policy is intended to achieve in practice." required />
-                          </label>
                         </div>
-                        {createMode ? (
-                        <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: "0.55rem" }}>
-                          <div className="catalog-modal-section-header">
-                            <div className="catalog-modal-section-title">
-                              Similar Existing Policies {makeLegendIcon("Closest policy records from the database. Use one to auto-populate Step 2 fields.")}
-                            </div>
-                            {loadingPolicySuggestions ? (
-                              <span className="detail-label" style={{ color: "var(--un-blue)" }}>Searching...</span>
-                            ) : null}
-                          </div>
-                          {policySuggestionError ? (
-                            <p className="error-text" style={{ marginBottom: 0 }}>{policySuggestionError}</p>
-                          ) : null}
-                          {!policySuggestions.length && !loadingPolicySuggestions ? (
-                            <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
-                              Semantic policy matches appear after both descriptions reach 6+ words. Current: Requirement {requirementWordCount}/6, Policy {policyWordCount}/6.
-                            </p>
-                          ) : null}
-                          {policySuggestions.length ? (
-                            <div style={{ maxHeight: "220px", overflowY: "auto", display: "grid", gap: "0.45rem", marginTop: "0.35rem" }}>
-                              {policySuggestions.map((policy) => (
-                                <div key={policy.id} className="catalog-history-item" style={{ marginBottom: 0 }}>
-                                  <p className="catalog-history-meta" style={{ marginBottom: "0.2rem" }}>
-                                    {(policy?.policy_type || "Policy")} | {(policy?.jurisdiction || "Worldwide")}
-                                  </p>
-                                  <p style={{ marginBottom: "0.25rem", fontWeight: 600 }}>
-                                    {cleanNarrativeText(policy?.title) || "Untitled policy"}
-                                  </p>
-                                  <p style={{ marginBottom: "0.4rem" }}>
-                                    {cleanNarrativeText(policy?.description) || "No policy description available."}
-                                  </p>
-                                  <button
-                                    type="button"
-                                    className="btn-secondary btn-xs"
-                                    onClick={() => applyPolicySuggestion(policy)}
-                                    title="Use this policy to auto-populate Step 2 fields"
-                                  >
-                                    Use Policy
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                        ) : null}
                         </div>
                       ) : null}
 
                       {adminFormStep === 3 ? (
-                        <div className="catalog-modal-section catalog-modal-mini-section catalog-wizard-stage">
+                        <div className="catalog-modal-section catalog-modal-mini-section catalog-wizard-stage wizard-section-card">
                         <div className="catalog-modal-section-title">
                           Control and KPI Mapping {makeLegendIcon("Define how conformance is measured through telemetry or manual attestation KPI definitions.")}
                         </div>
                         {createMode ? (
-                        <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: "0.45rem", marginBottom: "0.45rem" }}>
+                        <div className="catalog-modal-section catalog-modal-mini-section wizard-ai-recommend-card" style={{ marginTop: "0.45rem", marginBottom: "0.45rem" }}>
                           <div className="catalog-modal-section-header">
                             <div className="catalog-modal-section-title">
+                              <span className="wizard-ai-glyph" aria-hidden="true">◈</span>
                               AI KPI Recommendation {makeLegendIcon("AI-recommended control measure type and KPI based on your requirement and policy context.")}
                             </div>
                             {loadingSemanticSuggestion ? (
-                              <span className="detail-label" style={{ color: "var(--un-blue)" }}>Analyzing...</span>
+                              <span className="wizard-confidence-badge">Analyzing...</span>
                             ) : null}
                           </div>
                           {semanticSuggestion ? (
-                            <div className="detail-grid" style={{ marginTop: "0.2rem" }}>
+                            <div className="detail-grid wizard-ai-recommend-grid" style={{ marginTop: "0.2rem" }}>
                               <div className="detail-row">
                                 <span className="detail-label">Recommended Source</span>
                                 <span className="detail-value">
@@ -3614,23 +3771,19 @@ function CatalogSearchPanel() {
                               </div>
                               <div className="detail-row">
                                 <span className="detail-label">Confidence</span>
-                                <span className="detail-value">
+                                <span className="detail-value wizard-ai-confidence-pill">
                                   {Math.round((Number(semanticSuggestion.confidence || 0)) * 100)}%
                                 </span>
                               </div>
                               <div className="detail-row">
                                 <button
                                   type="button"
-                                  className="catalog-inline-icon-link"
+                                  className="wizard-link-action"
                                   onClick={applyAIMetricSuggestion}
                                   disabled={savingAdminRecord || deletingAdminRecord}
                                   title="Apply AI KPI recommendation"
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                    <path d="M4 12h8" />
-                                    <path d="m9 7 5 5-5 5" />
-                                    <path d="M14 5h6v14h-6" />
-                                  </svg>
+                                  <span aria-hidden="true">→</span>
                                   <span>Apply Recommendation</span>
                                 </button>
                               </div>
@@ -3643,7 +3796,7 @@ function CatalogSearchPanel() {
                         </div>
                         ) : null}
                         <div className="detail-grid catalog-wizard-grid">
-                        <div className="catalog-wizard-mode-panel">
+                        <div className="catalog-wizard-mode-panel wizard-section-card">
                           <label className="catalog-wizard-field">
                             <span className="detail-label">
                               Governance Category {makeLegendIcon("Select the governance category for this KPI mapping. Telemetry metric results are filtered to this category.")}
@@ -3659,6 +3812,9 @@ function CatalogSearchPanel() {
                               ))}
                             </select>
                           </label>
+                          <p className="wizard-kpi-governance-note">
+                            KPI mapping stays within this governance category and can be overwritten before create.
+                          </p>
                           <span className="detail-label catalog-wizard-inline-label">
                             Measurement Source {makeLegendIcon("Telemetry uses system metrics; Manual requires user-defined KPI attestation details.")}
                           </span>
@@ -3673,7 +3829,7 @@ function CatalogSearchPanel() {
                               disabled={savingAdminRecord || deletingAdminRecord}
                             />
                             <span className="catalog-scope-option-text">
-                              Telemetry {makeLegendIcon("Select one existing KPI from platform telemetry; control details are auto-generated.")}
+                              ◎ Telemetry {makeLegendIcon("Select one existing KPI from platform telemetry; control details are auto-generated.")}
                             </span>
                           </label>
                           <label className="catalog-measure-mode">
@@ -3686,7 +3842,7 @@ function CatalogSearchPanel() {
                               disabled={savingAdminRecord || deletingAdminRecord}
                             />
                             <span className="catalog-scope-option-text">
-                              Manual {makeLegendIcon("Define KPI name and definition for evidence-based manual attestation.")}
+                              ✎ Manual {makeLegendIcon("Define KPI name and definition for evidence-based manual attestation.")}
                             </span>
                           </label>
                           </div>
@@ -3778,7 +3934,7 @@ function CatalogSearchPanel() {
                           </div>
                         ) : (
                           <>
-                            <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
+                            <p className="catalog-modal-helper-text wizard-manual-callout" style={{ marginBottom: 0 }}>
                               Control requires manual attestation and evidence of conformance with the requirement.
                             </p>
                             <label className="catalog-wizard-field">
@@ -3814,8 +3970,9 @@ function CatalogSearchPanel() {
 
                       {adminRecordError ? <p className="error-text" style={{ marginBottom: 0 }}>{adminRecordError}</p> : null}
                       {adminRecordNotice ? <p className="section-copy" style={{ marginBottom: 0, color: "var(--success)" }}>{adminRecordNotice}</p> : null}
+                      </div>
 
-                      <div className="catalog-wizard-footer">
+                      <div className={`catalog-wizard-footer${createMode ? " wizard-footer" : ""}`}>
                         <div className="catalog-wizard-footer-left">
                           <button
                             type="button"
@@ -3837,7 +3994,7 @@ function CatalogSearchPanel() {
                         <div className="catalog-wizard-footer-right">
                         <button
                           type="button"
-                          className="btn-secondary"
+                          className={createMode ? "wizard-footer-text-btn" : "btn-secondary"}
                           onClick={closeModal}
                           disabled={savingAdminRecord || deletingAdminRecord}
                         >
@@ -3845,7 +4002,7 @@ function CatalogSearchPanel() {
                         </button>
                         <button
                           type="button"
-                          className="btn-secondary"
+                          className={createMode ? "wizard-footer-text-btn is-danger" : "btn-secondary"}
                           onClick={deleteAdminRequirement}
                           disabled={savingAdminRecord || deletingAdminRecord || !selectedItem?.id || createMode || String(selectedItem?.id || "").startsWith("__new__")}
                         >
@@ -3853,7 +4010,7 @@ function CatalogSearchPanel() {
                         </button>
                         <button
                           type="submit"
-                          className="btn-primary catalog-action-btn"
+                          className={`btn-primary catalog-action-btn${createMode ? " wizard-create-btn" : ""}`}
                           disabled={
                             savingAdminRecord
                             || deletingAdminRecord
