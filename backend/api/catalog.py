@@ -25,6 +25,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.search.factory import get_search_adapter
+from core.requirement_intelligence import (
+    find_related_requirements,
+    suggest_requirement_draft,
+    sync_related_requirements_graph,
+)
 from db.session import get_db_session
 
 router = APIRouter(tags=["catalog"])
@@ -277,6 +282,61 @@ class AdminRequirementStatusUpdateResponse(BaseModel):
     requirement_id: str
     regulation_id: str
     policy_status: str
+
+
+class RelatedRequirementItem(BaseModel):
+    requirement_id: str
+    title: str
+    description: str | None = None
+    category: str | None = None
+    score: float
+    control_id: str | None = None
+    control_title: str | None = None
+    metric_name: str | None = None
+
+
+class RequirementRelatedResponse(BaseModel):
+    requirement_id: str
+    items: list[RelatedRequirementItem]
+    total: int
+    limit: int
+    min_score: float
+
+
+class AdminRequirementSuggestRequest(BaseModel):
+    policy_title: str = Field(..., min_length=2, max_length=280)
+    policy_description: str = Field(..., min_length=2, max_length=4000)
+    governance_category: str = Field(..., min_length=2, max_length=120)
+    requirement_hint: str = Field(default="", max_length=1200)
+    risk_statement_hint: str = Field(default="", max_length=1000)
+    use_llm: bool = True
+    limit: int = Field(default=8, ge=1, le=20)
+
+    @field_validator(
+        "policy_title",
+        "policy_description",
+        "governance_category",
+        mode="before",
+    )
+    @classmethod
+    def _suggest_required_fields_must_not_be_blank(cls, value: Any, info: ValidationInfo) -> str:
+        text_value = str(value or "").strip()
+        if not text_value:
+            raise ValueError(f"{info.field_name} is required")
+        return text_value
+
+
+class AdminRequirementSuggestResponse(BaseModel):
+    requirement_title: str
+    requirement_description: str
+    control_title: str
+    control_description: str
+    risk_statement: str
+    control_measure_type: Literal["system_telemetry", "evidence_based"]
+    metric_name: str | None = None
+    suggestion_source: str
+    confidence: float
+    related_requirements: list[RelatedRequirementItem]
 
 
 class AdminPolicySearchItem(BaseModel):
@@ -663,6 +723,70 @@ async def get_requirement(
     if row is None:
         raise HTTPException(status_code=404, detail="Requirement not found")
     return RequirementListItem(**row)
+
+
+@router.get("/catalog/requirements/{req_id}/related", response_model=RequirementRelatedResponse)
+async def get_related_requirements(
+    req_id: UUID = Path(..., description="Requirement UUID"),
+    limit: int = Query(default=8, ge=1, le=20),
+    min_score: float = Query(default=0.2, ge=0.0, le=1.0),
+    session: AsyncSession = Depends(get_db_session),
+) -> RequirementRelatedResponse:
+    base_result = await session.execute(
+        text(
+            """
+            SELECT
+                r.id::text AS requirement_id,
+                r.title AS title,
+                COALESCE(r.description, '') AS description,
+                COALESCE(r.category, '') AS category,
+                (
+                    SELECT cr.control_id::text
+                    FROM control_requirement cr
+                    WHERE cr.requirement_id = r.id
+                    ORDER BY cr.control_id::text
+                    LIMIT 1
+                ) AS control_id
+            FROM requirement r
+            WHERE r.id::text = :requirement_id
+            """
+        ),
+        {"requirement_id": str(req_id)},
+    )
+    row = base_result.mappings().first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Requirement not found")
+
+    related_rows = await find_related_requirements(
+        session,
+        query_title=(row.get("title") or ""),
+        query_description=(row.get("description") or ""),
+        query_category=(row.get("category") or ""),
+        query_control_id=(row.get("control_id") or None),
+        exclude_requirement_id=str(req_id),
+        limit=limit,
+        min_score=min_score,
+    )
+    items = [
+        RelatedRequirementItem(
+            requirement_id=entry.requirement_id,
+            title=entry.title,
+            description=entry.description,
+            category=entry.category,
+            score=entry.score,
+            control_id=entry.control_id,
+            control_title=entry.control_title,
+            metric_name=entry.metric_name,
+        )
+        for entry in related_rows
+    ]
+    return RequirementRelatedResponse(
+        requirement_id=str(req_id),
+        items=items,
+        total=len(items),
+        limit=limit,
+        min_score=min_score,
+    )
 
 
 @router.get("/catalog/regulations", response_model=RegulationListResponse)
@@ -1095,6 +1219,55 @@ async def admin_search_requirements(
     )
     items = [AdminRequirementQuickSearchItem(**row) for row in rows_result.mappings().all()]
     return AdminRequirementQuickSearchResponse(items=items, total=len(items))
+
+
+@router.post(
+    "/catalog/admin/requirements/suggest",
+    response_model=AdminRequirementSuggestResponse,
+)
+async def admin_suggest_requirement(
+    payload: AdminRequirementSuggestRequest,
+    _admin_scope: None = Depends(require_governance_admin_scope),
+    session: AsyncSession = Depends(get_db_session),
+) -> AdminRequirementSuggestResponse:
+    suggestion, related_rows = await suggest_requirement_draft(
+        session,
+        policy_title=payload.policy_title,
+        policy_description=payload.policy_description,
+        governance_category=payload.governance_category,
+        requirement_hint=payload.requirement_hint,
+        risk_statement_hint=payload.risk_statement_hint,
+        preferred_related_limit=payload.limit,
+        use_llm=payload.use_llm,
+    )
+    return AdminRequirementSuggestResponse(
+        requirement_title=suggestion.requirement_title,
+        requirement_description=suggestion.requirement_description,
+        control_title=suggestion.control_title,
+        control_description=suggestion.control_description,
+        risk_statement=suggestion.risk_statement,
+        control_measure_type=(
+            "system_telemetry"
+            if suggestion.control_measure_type == "system_telemetry"
+            else "evidence_based"
+        ),
+        metric_name=suggestion.metric_name,
+        suggestion_source=suggestion.suggestion_source,
+        confidence=suggestion.confidence,
+        related_requirements=[
+            RelatedRequirementItem(
+                requirement_id=row.requirement_id,
+                title=row.title,
+                description=row.description,
+                category=row.category,
+                score=row.score,
+                control_id=row.control_id,
+                control_title=row.control_title,
+                metric_name=row.metric_name,
+            )
+            for row in related_rows
+        ],
+    )
 
 
 @router.get(
@@ -1842,6 +2015,24 @@ async def admin_save_requirement_record(
         assigned_count = len(target_set)
 
         await session.commit()
+        try:
+            related_for_graph = await find_related_requirements(
+                session,
+                query_title=payload.requirement_title.strip(),
+                query_description=payload.requirement_description.strip(),
+                query_category=payload.governance_category.strip(),
+                query_control_id=control_id,
+                exclude_requirement_id=requirement_id,
+                limit=8,
+                min_score=0.4,
+            )
+            await sync_related_requirements_graph(
+                requirement_id,
+                [row.requirement_id for row in related_for_graph if row.score >= 0.55],
+            )
+        except Exception:
+            pass
+
         return AdminRequirementSaveResponse(
             requirement_id=requirement_id,
             control_id=control_id,

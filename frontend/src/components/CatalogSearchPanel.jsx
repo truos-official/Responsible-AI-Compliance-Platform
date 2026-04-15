@@ -4,10 +4,12 @@ import PropTypes from "prop-types";
 import {
   deleteAdminRequirementRecord,
   getCatalogItemDetail,
+  listRelatedRequirements,
   listAdminSystemKpis,
   listControls,
   listRequirements,
   saveAdminRequirementRecord,
+  suggestAdminRequirementDraft,
   updateAdminRequirementStatus,
 } from "../api/catalogClient";
 import { api } from "../api/client";
@@ -597,6 +599,12 @@ function CatalogSearchPanel() {
   const [showAllMetricResults, setShowAllMetricResults] = useState(false);
   const [metricFilterQuery, setMetricFilterQuery] = useState("");
   const [adminDraft, setAdminDraft] = useState(createEmptyAdminDraft(selectedApp?.id || ""));
+  const [adminDraftTouched, setAdminDraftTouched] = useState({});
+  const [semanticSuggestion, setSemanticSuggestion] = useState(null);
+  const [semanticRelatedDraft, setSemanticRelatedDraft] = useState([]);
+  const [loadingSemanticSuggestion, setLoadingSemanticSuggestion] = useState(false);
+  const [semanticSuggestionError, setSemanticSuggestionError] = useState("");
+  const [lastSemanticRequestKey, setLastSemanticRequestKey] = useState("");
 
   const queryTrimmed = useMemo(() => query.trim(), [query]);
   const isGlobalAdmin = useMemo(
@@ -1374,6 +1382,7 @@ function CatalogSearchPanel() {
       regulations: [],
       jurisdictions: [],
       interpretationHistory: [],
+      semanticRelated: [],
     });
     setLoadingDetail(false);
     setDetailError("");
@@ -1385,6 +1394,11 @@ function CatalogSearchPanel() {
     setAdminRecordError("");
     setAdminFormStep(1);
     setAdminDraft(createEmptyAdminDraft(scopedAppId));
+    setAdminDraftTouched({});
+    setSemanticSuggestion(null);
+    setSemanticRelatedDraft([]);
+    setSemanticSuggestionError("");
+    setLastSemanticRequestKey("");
   }
 
   function onSortColumn(columnKey) {
@@ -1403,6 +1417,22 @@ function CatalogSearchPanel() {
   function sortIndicator(columnKey) {
     if (sortConfig.key !== columnKey) return "↕";
     return sortConfig.direction === "asc" ? "↑" : "↓";
+  }
+
+  function openRelatedRequirement(relatedItem) {
+    const relatedId = String(relatedItem?.requirement_id || "").trim();
+    if (!relatedId) return;
+    const existing = allRequirements.find((item) => String(item?.id || "") === relatedId);
+    if (existing) {
+      selectResult(existing);
+      return;
+    }
+    selectResult({
+      id: relatedId,
+      title: relatedItem?.title || "Related requirement",
+      category: relatedItem?.category || "Risk & Compliance",
+      type: "requirement",
+    });
   }
 
   function resolveScopeItem(item, detail = null) {
@@ -1463,6 +1493,11 @@ function CatalogSearchPanel() {
 
   async function selectResult(item) {
     setIsCreatingRequirement(false);
+    setSemanticSuggestion(null);
+    setSemanticRelatedDraft([]);
+    setSemanticSuggestionError("");
+    setLastSemanticRequestKey("");
+    setAdminDraftTouched({});
     setSelectedItem(item);
     setSelectedDetail(null);
     setSelectedRecord(null);
@@ -1518,6 +1553,14 @@ function CatalogSearchPanel() {
       const controls = resolveLinkedControls(item, detail, scopeItem).filter((control) => Boolean(control?.id));
 
       setSelectedDetail(detail);
+      let semanticRelated = [];
+      try {
+        const relatedPayload = await listRelatedRequirements(item.id, { limit: 8, minScore: 0.2 });
+        semanticRelated = Array.isArray(relatedPayload?.items) ? relatedPayload.items : [];
+      } catch {
+        semanticRelated = [];
+      }
+
       setSelectedRecord({
         controls,
         scopeItem,
@@ -1525,6 +1568,7 @@ function CatalogSearchPanel() {
         regulations: regulations.sort((a, b) => a.localeCompare(b)),
         jurisdictions: jurisdictions.sort((a, b) => a.localeCompare(b)),
         interpretationHistory: resolveInterpretations(item, detail),
+        semanticRelated,
       });
     } catch (err) {
       const detail = err?.response?.data?.detail;
@@ -1548,6 +1592,11 @@ function CatalogSearchPanel() {
     setAdminRecordNotice("");
     setAdminRecordError("");
     setAdminFormStep(1);
+    setAdminDraftTouched({});
+    setSemanticSuggestion(null);
+    setSemanticRelatedDraft([]);
+    setSemanticSuggestionError("");
+    setLastSemanticRequestKey("");
   }
 
   function openAssignRequirementModal(item) {
@@ -1818,7 +1867,121 @@ function CatalogSearchPanel() {
     setShowAllMetricResults(false);
   }, [adminDraft.governance_category]);
 
+  useEffect(() => {
+    if (!createMode || !isGlobalAdmin) return;
+    if (!selectedItem || String(selectedItem?.id || "") !== "__new__") return;
+
+    const policyTitle = String(adminDraft.policy_title || "").trim();
+    const policyDescription = String(adminDraft.policy_description || "").trim();
+    const governanceCategory = String(adminDraft.governance_category || "").trim();
+    const riskStatementHint = String(adminDraft.risk_statement || "").trim();
+    const requirementHint = String(adminDraft.requirement_title || "").trim()
+      || String(adminDraft.requirement_description || "").trim();
+
+    if (!governanceCategory) return;
+    if (policyDescription.length < 30 && requirementHint.length < 16) return;
+
+    const requestKey = JSON.stringify({
+      policyTitle,
+      policyDescription,
+      governanceCategory,
+      riskStatementHint,
+      useLLM: true,
+    });
+    if (requestKey === lastSemanticRequestKey) return;
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLastSemanticRequestKey(requestKey);
+      setLoadingSemanticSuggestion(true);
+      setSemanticSuggestionError("");
+      try {
+        const suggestion = await suggestAdminRequirementDraft({
+          policy_title: policyTitle || "Draft Policy",
+          policy_description: policyDescription || requirementHint || "Draft governance requirement",
+          governance_category: governanceCategory,
+          requirement_hint: requirementHint,
+          risk_statement_hint: riskStatementHint,
+          use_llm: true,
+          limit: 8,
+        });
+        if (!active) return;
+
+        const related = Array.isArray(suggestion?.related_requirements)
+          ? suggestion.related_requirements
+          : [];
+        setSemanticSuggestion(suggestion || null);
+        setSemanticRelatedDraft(related);
+
+        setAdminDraft((prev) => {
+          const next = { ...prev };
+          const canReplace = (fieldName, currentValue) => {
+            const untouched = !adminDraftTouched?.[fieldName];
+            const empty = !String(currentValue || "").trim() || String(currentValue || "").trim() === "New Requirement";
+            return untouched || empty;
+          };
+
+          if (canReplace("requirement_title", prev.requirement_title) && suggestion?.requirement_title) {
+            next.requirement_title = suggestion.requirement_title;
+          }
+          if (canReplace("requirement_description", prev.requirement_description) && suggestion?.requirement_description) {
+            next.requirement_description = suggestion.requirement_description;
+          }
+          if (canReplace("risk_statement", prev.risk_statement) && suggestion?.risk_statement) {
+            next.risk_statement = suggestion.risk_statement;
+          }
+          if (canReplace("control_title", prev.control_title) && suggestion?.control_title) {
+            next.control_title = suggestion.control_title;
+          }
+          if (canReplace("control_description", prev.control_description) && suggestion?.control_description) {
+            next.control_description = suggestion.control_description;
+          }
+          if (
+            !adminDraftTouched?.control_measure_type
+            && suggestion?.control_measure_type
+          ) {
+            next.control_measure_type = suggestion.control_measure_type;
+          }
+          if (
+            suggestion?.control_measure_type === "system_telemetry"
+            && suggestion?.metric_name
+            && canReplace("metric_name", prev.metric_name)
+          ) {
+            next.metric_name = suggestion.metric_name;
+          }
+          return next;
+        });
+      } catch (err) {
+        if (!active) return;
+        const detail = err?.response?.data?.detail;
+        setSemanticSuggestionError(
+          typeof detail === "string" ? detail : "Semantic suggestion is temporarily unavailable.",
+        );
+      } finally {
+        if (active) setLoadingSemanticSuggestion(false);
+      }
+    }, 650);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [
+    createMode,
+    isGlobalAdmin,
+    selectedItem?.id,
+    adminDraft.policy_title,
+    adminDraft.policy_description,
+    adminDraft.governance_category,
+    adminDraft.risk_statement,
+    adminDraft.requirement_title,
+    adminDraft.requirement_description,
+    adminDraftTouched,
+    lastSemanticRequestKey,
+  ]);
+
   function updateAdminDraft(field, value) {
+    setAdminDraftTouched((prev) => ({ ...prev, [field]: true }));
     setAdminDraft((prev) => {
       if (field === "control_measure_type") {
         if (value === "system_telemetry") {
@@ -2848,6 +3011,31 @@ function CatalogSearchPanel() {
                         )}
                       </div>
                     </div>
+
+                    <div className="catalog-modal-section catalog-modal-mini-section">
+                      <div className="catalog-modal-section-title">
+                        Semantically Related Requirements {makeLegendIcon("Requirements with similar governance meaning, linked by semantic similarity scoring.")}
+                      </div>
+                      <div className="suggestions-wrap" style={{ marginBottom: "0.25rem" }}>
+                        {(selectedRecord?.semanticRelated || []).length ? (
+                          selectedRecord.semanticRelated.map((entry) => (
+                            <button
+                              key={entry.requirement_id}
+                              type="button"
+                              className="suggestion-pill"
+                              onClick={() => openRelatedRequirement(entry)}
+                              title={`Open requirement detail • score ${Math.round((Number(entry?.score || 0)) * 100)}%`}
+                            >
+                              {cleanNarrativeText(entry?.title) || "Related requirement"}
+                            </button>
+                          ))
+                        ) : (
+                          <span className="section-copy" style={{ marginBottom: 0 }}>
+                            No related requirements identified yet.
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </>
                 </div>
                 ) : null}
@@ -3107,6 +3295,63 @@ function CatalogSearchPanel() {
                             <input className="query-input catalog-field-input" value={adminDraft.risk_statement} onChange={(event) => updateAdminDraft("risk_statement", event.target.value)} placeholder="Plain-English risk addressed by this requirement" disabled={savingAdminRecord || deletingAdminRecord} required />
                           </label>
                         </div>
+                        {createMode ? (
+                        <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: "0.55rem" }}>
+                          <div className="catalog-modal-section-header">
+                            <div className="catalog-modal-section-title">
+                              AI Draft Suggestions {makeLegendIcon("Auto-proposed requirement/control text and related requirement links based on semantic similarity and LLM drafting.")}
+                            </div>
+                            {loadingSemanticSuggestion ? (
+                              <span className="detail-label" style={{ color: "var(--un-blue)" }}>Analyzing…</span>
+                            ) : (
+                              semanticSuggestion ? (
+                                <span className="detail-label" style={{ color: "var(--text-secondary)" }}>
+                                  {semanticSuggestion.suggestion_source || "heuristic"} • {Math.round((Number(semanticSuggestion.confidence || 0)) * 100)}% confidence
+                                </span>
+                              ) : null
+                            )}
+                          </div>
+                          {semanticSuggestionError ? (
+                            <p className="error-text" style={{ marginBottom: 0 }}>{semanticSuggestionError}</p>
+                          ) : null}
+                          {!semanticSuggestion && !loadingSemanticSuggestion ? (
+                            <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
+                              Enter policy and requirement context above. Suggestions auto-populate this wizard.
+                            </p>
+                          ) : null}
+                          {semanticSuggestion ? (
+                            <div className="detail-grid" style={{ marginTop: "0.35rem" }}>
+                              <div className="detail-row">
+                                <span className="detail-label">Suggested Control Type</span>
+                                <span className="detail-value">
+                                  {semanticSuggestion.control_measure_type === "system_telemetry" ? "Telemetry" : "Manual"}
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Suggested Metric</span>
+                                <span className="detail-value">
+                                  {semanticSuggestion.metric_name ? metricNamePlainEnglish(semanticSuggestion.metric_name) : "Manual attestation"}
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
+                          <div className="suggestions-wrap" style={{ marginTop: "0.4rem" }}>
+                            {semanticRelatedDraft.length ? (
+                              semanticRelatedDraft.map((entry) => (
+                                <button
+                                  key={entry.requirement_id}
+                                  type="button"
+                                  className="suggestion-pill"
+                                  onClick={() => openRelatedRequirement(entry)}
+                                  title={`Open related requirement • score ${Math.round((Number(entry?.score || 0)) * 100)}%`}
+                                >
+                                  {cleanNarrativeText(entry?.title) || "Related requirement"}
+                                </button>
+                              ))
+                            ) : null}
+                          </div>
+                        </div>
+                        ) : null}
                         </div>
                       ) : null}
 

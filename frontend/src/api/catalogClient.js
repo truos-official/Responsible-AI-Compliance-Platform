@@ -175,6 +175,27 @@ export async function updateAdminRequirementStatus(requirementId, policyStatus) 
   );
   return response.data;
 }
+export async function suggestAdminRequirementDraft(payload) {
+  const response = await catalogApi.post(
+    "/catalog/admin/requirements/suggest",
+    payload,
+    { headers: ADMIN_HEADERS },
+  );
+  return response.data;
+}
+
+export async function listRelatedRequirements(requirementId, {
+  limit = 8,
+  minScore = 0.2,
+} = {}) {
+  const response = await catalogApi.get(
+    `/catalog/requirements/${requirementId}/related`,
+    {
+      params: { limit, min_score: minScore },
+    },
+  );
+  return response.data;
+}
 export async function listAdminSystemKpis() {
   const response = await catalogApi.get(
     "/catalog/admin/system-kpis",
@@ -182,3 +203,4 @@ export async function listAdminSystemKpis() {
   );
   return Array.isArray(response.data) ? response.data : [];
 }
+
