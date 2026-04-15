@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 
 import {
@@ -9,6 +9,7 @@ import {
   listControls,
   listRequirements,
   saveAdminRequirementRecord,
+  searchAdminPolicies,
   suggestAdminRequirementDraft,
   updateAdminRequirementStatus,
 } from "../api/catalogClient";
@@ -260,7 +261,7 @@ function metricDefinitionPlainEnglish(metricName, description = "", expressionPr
   }
 
   if (expr) {
-    return "This KPI is calculated automatically from live telemetry using the platform’s predefined formula.";
+    return "This KPI is calculated automatically from live telemetry using the platform's predefined formula.";
   }
   return "This KPI is measured automatically from live system telemetry and cannot be manually edited.";
 }
@@ -325,7 +326,7 @@ function formulaToPlainEnglish(metricName, threshold) {
 
 function stripBulletChars(value) {
   return String(value || "")
-    .replace(/[•◦▪●‣]/g, " ")
+    .replace(/[\u2022\u25e6\u25aa\u25cf\u2023]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -605,6 +606,10 @@ function CatalogSearchPanel() {
   const [loadingSemanticSuggestion, setLoadingSemanticSuggestion] = useState(false);
   const [semanticSuggestionError, setSemanticSuggestionError] = useState("");
   const [lastSemanticRequestKey, setLastSemanticRequestKey] = useState("");
+  const semanticSuggestionRequestSeq = useRef(0);
+  const [policySuggestions, setPolicySuggestions] = useState([]);
+  const [loadingPolicySuggestions, setLoadingPolicySuggestions] = useState(false);
+  const [policySuggestionError, setPolicySuggestionError] = useState("");
 
   const queryTrimmed = useMemo(() => query.trim(), [query]);
   const isGlobalAdmin = useMemo(
@@ -1399,6 +1404,8 @@ function CatalogSearchPanel() {
     setSemanticRelatedDraft([]);
     setSemanticSuggestionError("");
     setLastSemanticRequestKey("");
+    setPolicySuggestions([]);
+    setPolicySuggestionError("");
   }
 
   function onSortColumn(columnKey) {
@@ -1415,8 +1422,8 @@ function CatalogSearchPanel() {
   }
 
   function sortIndicator(columnKey) {
-    if (sortConfig.key !== columnKey) return "↕";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
+    if (sortConfig.key !== columnKey) return "<->";
+    return sortConfig.direction === "asc" ? "up" : "down";
   }
 
   function openRelatedRequirement(relatedItem) {
@@ -1432,6 +1439,64 @@ function CatalogSearchPanel() {
       title: relatedItem?.title || "Related requirement",
       category: relatedItem?.category || "Risk & Compliance",
       type: "requirement",
+    });
+  }
+
+  async function applyRequirementSuggestion(relatedItem) {
+    const relatedId = String(relatedItem?.requirement_id || "").trim();
+    if (!relatedId) return;
+    let detail = null;
+    try {
+      detail = await getCatalogItemDetail({ id: relatedId, type: "requirement" });
+    } catch {
+      detail = null;
+    }
+
+    setAdminDraft((prev) => ({
+      ...prev,
+      requirement_title: cleanNarrativeText(detail?.title || relatedItem?.title || prev.requirement_title),
+      requirement_description: cleanNarrativeText(detail?.description || relatedItem?.description || prev.requirement_description),
+      governance_category: canonicalGovernanceCategory(detail?.category || relatedItem?.category || prev.governance_category) || prev.governance_category,
+      risk_statement: cleanNarrativeText(detail?.risk_statement || prev.risk_statement),
+    }));
+  }
+
+  function applyPolicySuggestion(policyItem) {
+    setAdminDraft((prev) => ({
+      ...prev,
+      policy_id: String(policyItem?.id || prev.policy_id || ""),
+      policy_title: String(policyItem?.title || prev.policy_title || ""),
+      policy_jurisdiction: String(policyItem?.jurisdiction || prev.policy_jurisdiction || ""),
+      policy_source: String(policyItem?.source || prev.policy_source || ""),
+      policy_description: cleanNarrativeText(policyItem?.description || prev.policy_description || ""),
+      policy_type: String(policyItem?.policy_type || prev.policy_type || "Global Policy"),
+      policy_status: String(policyItem?.policy_status || prev.policy_status || "Active"),
+    }));
+  }
+
+  function applyAIMetricSuggestion() {
+    if (!semanticSuggestion) return;
+    const suggestedType = semanticSuggestion.control_measure_type;
+    const suggestedMetricName = String(semanticSuggestion.metric_name || "").trim();
+
+    setAdminDraft((prev) => {
+      const next = { ...prev };
+      if (suggestedType === "system_telemetry") {
+        next.control_measure_type = "system_telemetry";
+        if (suggestedMetricName) {
+          next.metric_name = suggestedMetricName;
+          next.formula_expression = `latest(${suggestedMetricName})`;
+          const telemetryFields = deriveTelemetryControlFields(suggestedMetricName);
+          next.control_title = telemetryFields.title || next.control_title;
+          next.control_description = telemetryFields.description || next.control_description;
+        }
+      } else {
+        next.control_measure_type = "evidence_based";
+        if (suggestedMetricName && !String(next.metric_name || "").trim()) {
+          next.metric_name = suggestedMetricName;
+        }
+      }
+      return next;
     });
   }
 
@@ -1498,6 +1563,8 @@ function CatalogSearchPanel() {
     setSemanticSuggestionError("");
     setLastSemanticRequestKey("");
     setAdminDraftTouched({});
+    setPolicySuggestions([]);
+    setPolicySuggestionError("");
     setSelectedItem(item);
     setSelectedDetail(null);
     setSelectedRecord(null);
@@ -1597,6 +1664,8 @@ function CatalogSearchPanel() {
     setSemanticRelatedDraft([]);
     setSemanticSuggestionError("");
     setLastSemanticRequestKey("");
+    setPolicySuggestions([]);
+    setPolicySuggestionError("");
   }
 
   function openAssignRequirementModal(item) {
@@ -1890,8 +1959,8 @@ function CatalogSearchPanel() {
     });
     if (requestKey === lastSemanticRequestKey) return;
 
-    let active = true;
     const timer = setTimeout(async () => {
+      const requestSeq = ++semanticSuggestionRequestSeq.current;
       setLastSemanticRequestKey(requestKey);
       setLoadingSemanticSuggestion(true);
       setSemanticSuggestionError("");
@@ -1905,7 +1974,7 @@ function CatalogSearchPanel() {
           use_llm: true,
           limit: 8,
         });
-        if (!active) return;
+        if (requestSeq !== semanticSuggestionRequestSeq.current) return;
 
         const related = Array.isArray(suggestion?.related_requirements)
           ? suggestion.related_requirements
@@ -1952,18 +2021,19 @@ function CatalogSearchPanel() {
           return next;
         });
       } catch (err) {
-        if (!active) return;
+        if (requestSeq !== semanticSuggestionRequestSeq.current) return;
         const detail = err?.response?.data?.detail;
         setSemanticSuggestionError(
           typeof detail === "string" ? detail : "Semantic suggestion is temporarily unavailable.",
         );
       } finally {
-        if (active) setLoadingSemanticSuggestion(false);
+        if (requestSeq === semanticSuggestionRequestSeq.current) {
+          setLoadingSemanticSuggestion(false);
+        }
       }
     }, 650);
 
     return () => {
-      active = false;
       clearTimeout(timer);
     };
   }, [
@@ -1976,8 +2046,52 @@ function CatalogSearchPanel() {
     adminDraft.risk_statement,
     adminDraft.requirement_title,
     adminDraft.requirement_description,
-    adminDraftTouched,
     lastSemanticRequestKey,
+  ]);
+
+  useEffect(() => {
+    if (!createMode || !isGlobalAdmin) return;
+    if (!selectedItem || String(selectedItem?.id || "") !== "__new__") return;
+
+    const query = String(adminDraft.policy_title || "").trim()
+      || String(adminDraft.policy_description || "").trim().slice(0, 180);
+    if (query.length < 3) {
+      setPolicySuggestions([]);
+      setPolicySuggestionError("");
+      return;
+    }
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLoadingPolicySuggestions(true);
+      setPolicySuggestionError("");
+      try {
+        const payload = await searchAdminPolicies({ q: query, limit: 8 });
+        if (!active) return;
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        setPolicySuggestions(items);
+      } catch (err) {
+        if (!active) return;
+        const detail = err?.response?.data?.detail;
+        setPolicySuggestionError(
+          typeof detail === "string" ? detail : "Policy suggestions are temporarily unavailable.",
+        );
+        setPolicySuggestions([]);
+      } finally {
+        if (active) setLoadingPolicySuggestions(false);
+      }
+    }, 450);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [
+    createMode,
+    isGlobalAdmin,
+    selectedItem?.id,
+    adminDraft.policy_title,
+    adminDraft.policy_description,
   ]);
 
   function updateAdminDraft(field, value) {
@@ -3024,7 +3138,7 @@ function CatalogSearchPanel() {
                               type="button"
                               className="suggestion-pill"
                               onClick={() => openRelatedRequirement(entry)}
-                              title={`Open requirement detail • score ${Math.round((Number(entry?.score || 0)) * 100)}%`}
+                              title={`Open requirement detail - score ${Math.round((Number(entry?.score || 0)) * 100)}%`}
                             >
                               {cleanNarrativeText(entry?.title) || "Related requirement"}
                             </button>
@@ -3299,14 +3413,14 @@ function CatalogSearchPanel() {
                         <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: "0.55rem" }}>
                           <div className="catalog-modal-section-header">
                             <div className="catalog-modal-section-title">
-                              AI Draft Suggestions {makeLegendIcon("Auto-proposed requirement/control text and related requirement links based on semantic similarity and LLM drafting.")}
+                              Similar Existing Requirements {makeLegendIcon("Closest requirement definitions from the database. Use one to auto-populate Step 1 fields.")}
                             </div>
                             {loadingSemanticSuggestion ? (
-                              <span className="detail-label" style={{ color: "var(--un-blue)" }}>Analyzing…</span>
+                              <span className="detail-label" style={{ color: "var(--un-blue)" }}>Analyzing...</span>
                             ) : (
                               semanticSuggestion ? (
                                 <span className="detail-label" style={{ color: "var(--text-secondary)" }}>
-                                  {semanticSuggestion.suggestion_source || "heuristic"} • {Math.round((Number(semanticSuggestion.confidence || 0)) * 100)}% confidence
+                                  {semanticSuggestion.suggestion_source || "heuristic"} | {Math.round((Number(semanticSuggestion.confidence || 0)) * 100)}% confidence
                                 </span>
                               ) : null
                             )}
@@ -3314,42 +3428,36 @@ function CatalogSearchPanel() {
                           {semanticSuggestionError ? (
                             <p className="error-text" style={{ marginBottom: 0 }}>{semanticSuggestionError}</p>
                           ) : null}
-                          {!semanticSuggestion && !loadingSemanticSuggestion ? (
+                          {!semanticRelatedDraft.length && !loadingSemanticSuggestion ? (
                             <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
-                              Enter policy and requirement context above. Suggestions auto-populate this wizard.
+                              Add requirement and policy context above to generate similar requirement matches.
                             </p>
                           ) : null}
-                          {semanticSuggestion ? (
-                            <div className="detail-grid" style={{ marginTop: "0.35rem" }}>
-                              <div className="detail-row">
-                                <span className="detail-label">Suggested Control Type</span>
-                                <span className="detail-value">
-                                  {semanticSuggestion.control_measure_type === "system_telemetry" ? "Telemetry" : "Manual"}
-                                </span>
-                              </div>
-                              <div className="detail-row">
-                                <span className="detail-label">Suggested Metric</span>
-                                <span className="detail-value">
-                                  {semanticSuggestion.metric_name ? metricNamePlainEnglish(semanticSuggestion.metric_name) : "Manual attestation"}
-                                </span>
-                              </div>
+                          {semanticRelatedDraft.length ? (
+                            <div style={{ maxHeight: "220px", overflowY: "auto", display: "grid", gap: "0.45rem", marginTop: "0.35rem" }}>
+                              {semanticRelatedDraft.map((entry) => (
+                                <div key={entry.requirement_id} className="catalog-history-item" style={{ marginBottom: 0 }}>
+                                  <p className="catalog-history-meta" style={{ marginBottom: "0.2rem" }}>
+                                    {entry?.category || "Uncategorized"} | score {Math.round((Number(entry?.score || 0)) * 100)}%
+                                  </p>
+                                  <p style={{ marginBottom: "0.25rem", fontWeight: 600 }}>
+                                    {cleanNarrativeText(entry?.title) || "Untitled requirement"}
+                                  </p>
+                                  <p style={{ marginBottom: "0.4rem" }}>
+                                    {cleanNarrativeText(entry?.description) || "No requirement definition available."}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="btn-secondary btn-xs"
+                                    onClick={() => applyRequirementSuggestion(entry)}
+                                    title="Use this requirement to auto-populate Step 1 fields"
+                                  >
+                                    Use Definition
+                                  </button>
+                                </div>
+                              ))}
                             </div>
                           ) : null}
-                          <div className="suggestions-wrap" style={{ marginTop: "0.4rem" }}>
-                            {semanticRelatedDraft.length ? (
-                              semanticRelatedDraft.map((entry) => (
-                                <button
-                                  key={entry.requirement_id}
-                                  type="button"
-                                  className="suggestion-pill"
-                                  onClick={() => openRelatedRequirement(entry)}
-                                  title={`Open related requirement • score ${Math.round((Number(entry?.score || 0)) * 100)}%`}
-                                >
-                                  {cleanNarrativeText(entry?.title) || "Related requirement"}
-                                </button>
-                              ))
-                            ) : null}
-                          </div>
                         </div>
                         ) : null}
                         </div>
@@ -3405,6 +3513,51 @@ function CatalogSearchPanel() {
                             <textarea className="query-input catalog-field-input" rows={4} value={adminDraft.policy_description} onChange={(event) => updateAdminDraft("policy_description", event.target.value)} disabled={savingAdminRecord || deletingAdminRecord} placeholder="Summarize what this policy is intended to achieve in practice." required />
                           </label>
                         </div>
+                        {createMode ? (
+                        <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: "0.55rem" }}>
+                          <div className="catalog-modal-section-header">
+                            <div className="catalog-modal-section-title">
+                              Similar Existing Policies {makeLegendIcon("Closest policy records from the database. Use one to auto-populate Step 2 fields.")}
+                            </div>
+                            {loadingPolicySuggestions ? (
+                              <span className="detail-label" style={{ color: "var(--un-blue)" }}>Searching...</span>
+                            ) : null}
+                          </div>
+                          {policySuggestionError ? (
+                            <p className="error-text" style={{ marginBottom: 0 }}>{policySuggestionError}</p>
+                          ) : null}
+                          {!policySuggestions.length && !loadingPolicySuggestions ? (
+                            <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
+                              Enter policy title or description above to load matching policy records.
+                            </p>
+                          ) : null}
+                          {policySuggestions.length ? (
+                            <div style={{ maxHeight: "220px", overflowY: "auto", display: "grid", gap: "0.45rem", marginTop: "0.35rem" }}>
+                              {policySuggestions.map((policy) => (
+                                <div key={policy.id} className="catalog-history-item" style={{ marginBottom: 0 }}>
+                                  <p className="catalog-history-meta" style={{ marginBottom: "0.2rem" }}>
+                                    {(policy?.policy_type || "Policy")} | {(policy?.jurisdiction || "Worldwide")}
+                                  </p>
+                                  <p style={{ marginBottom: "0.25rem", fontWeight: 600 }}>
+                                    {cleanNarrativeText(policy?.title) || "Untitled policy"}
+                                  </p>
+                                  <p style={{ marginBottom: "0.4rem" }}>
+                                    {cleanNarrativeText(policy?.description) || "No policy description available."}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="btn-secondary btn-xs"
+                                    onClick={() => applyPolicySuggestion(policy)}
+                                    title="Use this policy to auto-populate Step 2 fields"
+                                  >
+                                    Use Policy
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        ) : null}
                         </div>
                       ) : null}
 
@@ -3413,6 +3566,54 @@ function CatalogSearchPanel() {
                         <div className="catalog-modal-section-title">
                           Control and KPI Mapping {makeLegendIcon("Define how conformance is measured through telemetry or manual attestation KPI definitions.")}
                         </div>
+                        {createMode ? (
+                        <div className="catalog-modal-section catalog-modal-mini-section" style={{ marginTop: "0.45rem", marginBottom: "0.45rem" }}>
+                          <div className="catalog-modal-section-header">
+                            <div className="catalog-modal-section-title">
+                              AI KPI Recommendation {makeLegendIcon("AI-recommended control measure type and KPI based on your requirement and policy context.")}
+                            </div>
+                            {loadingSemanticSuggestion ? (
+                              <span className="detail-label" style={{ color: "var(--un-blue)" }}>Analyzing...</span>
+                            ) : null}
+                          </div>
+                          {semanticSuggestion ? (
+                            <div className="detail-grid" style={{ marginTop: "0.2rem" }}>
+                              <div className="detail-row">
+                                <span className="detail-label">Recommended Source</span>
+                                <span className="detail-value">
+                                  {semanticSuggestion.control_measure_type === "system_telemetry" ? "Telemetry" : "Manual"}
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Recommended KPI</span>
+                                <span className="detail-value">
+                                  {semanticSuggestion.metric_name ? metricNamePlainEnglish(semanticSuggestion.metric_name) : "Manual attestation"}
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <span className="detail-label">Confidence</span>
+                                <span className="detail-value">
+                                  {Math.round((Number(semanticSuggestion.confidence || 0)) * 100)}%
+                                </span>
+                              </div>
+                              <div className="detail-row">
+                                <button
+                                  type="button"
+                                  className="btn-secondary btn-xs"
+                                  onClick={applyAIMetricSuggestion}
+                                  disabled={savingAdminRecord || deletingAdminRecord}
+                                >
+                                  Apply Recommendation
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="catalog-modal-helper-text" style={{ marginBottom: 0 }}>
+                              Recommendation appears after Step 1 and Step 2 context is populated.
+                            </p>
+                          )}
+                        </div>
+                        ) : null}
                         <div className="detail-grid catalog-wizard-grid">
                         <div className="catalog-wizard-mode-panel">
                           <label className="catalog-wizard-field">
@@ -3650,6 +3851,8 @@ function CatalogSearchPanel() {
 }
 
 export default CatalogSearchPanel;
+
+
 
 
 
