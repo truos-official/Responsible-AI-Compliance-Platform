@@ -3507,6 +3507,8 @@ async def get_dashboard_step(
         )
     )
     selected_requirement_ids = [str(rid) for rid in selected_requirements_result.scalars().all()]
+    # Keep step-scoped naming consistent with other dashboard builders.
+    selected_step_requirement_ids = list(selected_requirement_ids)
     if not selected_requirement_ids:
         return DashboardStepResponse(
             application_id=app_id,
